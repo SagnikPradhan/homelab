@@ -1,0 +1,89 @@
+services:
+  traefik:
+    container_name: traefik
+    restart: unless-stopped
+    image: traefik:v3.1
+    command:
+      - "--api.dashboard=true"
+      - "--accesslog=true"
+      - "--api.debug=false"
+      - "--providers.docker"
+      - "--configFile=/etc/traefik/traefik.yml"
+      - "--entryPoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entryPoints.websecure.address=:443"
+      - "--providers.docker.exposedByDefault=false"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.myresolver.acme.email=contact.sagnikpradhan@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    labels:
+      - "traefik.enable=${PRODUCTION}"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
+      - "traefik.http.routers.dashboard.tls.domains[0].main=*.${DOMAIN}"
+    environment:
+      - CF_DNS_API_TOKEN
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/traefik.yml:/etc/traefik/traefik.yml
+      - ./data/traefik/letsencrypt:/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    
+
+  whoami:
+    image: traefik/whoami:v1.10
+    labels:
+      - "traefik.enable=${PRODUCTION}"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+      - "traefik.http.routers.whoami.tls.domains[0].main=*.${DOMAIN}"
+
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    volumes:
+      - ./config/homeassistant.yml:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Asia/Kolkata
+
+  frigate:
+    container_name: frigate
+    restart: unless-stopped
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: "64mb"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config/frigate.yml:/config/config.yml
+      - ./data/frigate/config:/config
+      - ./data/frigate/data:/media/frigate
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    environment:
+      - FRIGATE_DOOR_CAMERA_RTSP_STREAM1
+      - FRIGATE_DOOR_CAMERA_RTSP_STREAM2
+    labels:
+      - "traefik.enable=${PRODUCTION}"
+      - "traefik.http.routers.frigate.rule=Host(`frigate.${DOMAIN}`)"
+      - "traefik.http.routers.frigate.entrypoints=websecure"
+      - "traefik.http.routers.frigate.tls.certresolver=myresolver"
+      - "traefik.http.routers.frigate.tls.domains[0].main=*.${DOMAIN}"
+      - "traefik.http.services.frigate.loadbalancer.server.port=8971"
+
+
+networks:
+  default:
+    name: traefik_proxy
+    external: true

@@ -1,0 +1,18 @@
+http:
+  routers:
+    homeassistant:
+      rule: Host(`homeassistant.${DOMAIN}`)
+      service: homeassistant
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: myresolver
+        domains:
+          - main: "*.${DOMAIN}"
+  services:
+    homeassistant-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:8123"
+
+# yaml-language-server: $schema=https://json.schemastore.org/traefik-v2-file-provider.json
