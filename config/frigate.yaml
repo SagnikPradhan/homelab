@@ -7,7 +7,7 @@ tls:
 go2rtc:
   streams:
     door_camera:
-      - "${FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+      - '{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}'
 
 objects:
   track:
@@ -24,10 +24,10 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: "${FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+        - path: '{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}'
           roles:
             - record
-        - path: "${FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
+        - path: '{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}'
           roles:
             - detect
     detect:
@@ -47,5 +47,5 @@ cameras:
         - 0.785,0,0.765,0,0.756,0.089,0.729,0.11,0.719,0.168,0.689,0.167,0.665,0.234,0.636,0.192,0.625,0,0.598,0,0.597,0.287,0.557,0.36,0.521,0.37,0.506,0.406,0.48,0.435,0.456,0.405,0.426,0.493,0.447,0.611,0.599,0.765,0.773,0.883,0.756,0.97,0.768,1,1,1,1,0
         - 0,0.679,0.049,0.851,0.102,0.951,0.137,1,0,1
         - 0.002,0.152,0,0,0.258,0,0.26,0.029
-
+        - 0.295,0.295,0.339,0.3,0.358,0.351,0.363,0.437,0.34,0.463,0.321,0.459
 version: 0.14

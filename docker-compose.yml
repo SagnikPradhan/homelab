@@ -6,56 +6,43 @@ services:
     command:
       - "--api.dashboard=true"
       - "--accesslog=true"
-      - "--api.debug=false"
+      - "--api.debug=true"
       - "--providers.docker"
-      - "--configFile=/etc/traefik/traefik.yml"
       - "--entryPoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--entryPoints.websecure.address=:443"
       - "--providers.docker.exposedByDefault=false"
       - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.myresolver.acme.email=contact.sagnikpradhan@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.myresolver.acme.caserver=${CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}"
     labels:
-      - "traefik.enable=${PRODUCTION}"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.enable=${PRODUCTION:-false}"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN?error}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
-      - "traefik.http.routers.dashboard.tls.domains[0].main=*.${DOMAIN}"
+      - "traefik.http.routers.dashboard.tls.domains[0].main=*.${DOMAIN?error}"
     environment:
-      - CF_DNS_API_TOKEN
+      - CF_DNS_API_TOKEN=${CLOUDFLARE_API_TOKEN?error}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config/traefik.yml:/etc/traefik/traefik.yml
       - ./data/traefik/letsencrypt:/letsencrypt
     ports:
       - "80:80"
       - "443:443"
-    
 
   whoami:
     image: traefik/whoami:v1.10
     labels:
-      - "traefik.enable=${PRODUCTION}"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN}`)"
+      - "traefik.enable=${PRODUCTION:-false}"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN?error}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls.certresolver=myresolver"
-      - "traefik.http.routers.whoami.tls.domains[0].main=*.${DOMAIN}"
-
-  homeassistant:
-    container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:stable"
-    volumes:
-      - ./config/homeassistant.yml:/config
-      - /etc/localtime:/etc/localtime:ro
-      - /run/dbus:/run/dbus:ro
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      - TZ=Asia/Kolkata
+      - "traefik.http.routers.whoami.tls.domains[0].main=*.${DOMAIN?error}"
 
   frigate:
     container_name: frigate
@@ -64,7 +51,7 @@ services:
     shm_size: "64mb"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./config/frigate.yml:/config/config.yml
+      - ./config/frigate.yaml:/config/config.yml
       - ./data/frigate/config:/config
       - ./data/frigate/data:/media/frigate
       - type: tmpfs
@@ -72,16 +59,15 @@ services:
         tmpfs:
           size: 1000000000
     environment:
-      - FRIGATE_DOOR_CAMERA_RTSP_STREAM1
-      - FRIGATE_DOOR_CAMERA_RTSP_STREAM2
+      - FRIGATE_DOOR_CAMERA_RTSP_STREAM1=${FRIGATE_DOOR_CAMERA_RTSP_STREAM1?error}
+      - FRIGATE_DOOR_CAMERA_RTSP_STREAM2=${FRIGATE_DOOR_CAMERA_RTSP_STREAM2?error}
     labels:
-      - "traefik.enable=${PRODUCTION}"
-      - "traefik.http.routers.frigate.rule=Host(`frigate.${DOMAIN}`)"
+      - "traefik.enable=${PRODUCTION:-false}"
+      - "traefik.http.routers.frigate.rule=Host(`frigate.${DOMAIN?error}`)"
       - "traefik.http.routers.frigate.entrypoints=websecure"
       - "traefik.http.routers.frigate.tls.certresolver=myresolver"
-      - "traefik.http.routers.frigate.tls.domains[0].main=*.${DOMAIN}"
+      - "traefik.http.routers.frigate.tls.domains[0].main=*.${DOMAIN?error}"
       - "traefik.http.services.frigate.loadbalancer.server.port=8971"
-
 
 networks:
   default:
