@@ -1,0 +1,39 @@
+- name: Update APT package cache
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Upgrade all APT packages
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Remove unused Docker data
+  community.docker.docker_prune:
+    containers: true
+    images: true
+    networks: true
+    volumes: true
+    builder_cache: true
+
+- name: Check if reboot is required
+  become: true
+  become_user: root
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+  when: ansible_os_family == "Debian"
+
+- name: Reboot the server if needed
+  become: true
+  become_user: root
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when: reboot_required.stat.exists

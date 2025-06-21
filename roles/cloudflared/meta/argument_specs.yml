@@ -1,0 +1,30 @@
+argument_specs:
+  main:
+    short_description: >-
+      Sets up a Cloudflared tunnel to securely expose Docker services to the
+      internet.
+    options:
+      cloudflared_token:
+        type: str
+        required: true
+        description: >-
+          The authentication token used to authorize and connect the
+          Cloudflared tunnel to your Cloudflare account.
+      cloudflared_project_name:
+        type: str
+        required: true
+        description: >-
+          The name of the Docker Compose project associated with the services
+          being tunneled.
+      cloudflared_network_name:
+        type: str
+        required: true
+        description: >-
+          The name of the Docker network that the Cloudflared container should
+          connect to.
+      cloudflared_container_name:
+        type: str
+        required: true
+        description: >-
+          The identifier to assign to the Cloudflared container running the
+          tunnel.

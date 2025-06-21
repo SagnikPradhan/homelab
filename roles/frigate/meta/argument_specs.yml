@@ -1,0 +1,50 @@
+argument_specs:
+  main:
+    short_description: >-
+      Deploys Frigate NVR with integrated Traefik routing and GPU acceleration
+      support.
+    options:
+      frigate_project_name:
+        type: str
+        required: true
+        description: >-
+          The name assigned to the Frigate Docker Compose project.
+      frigate_container_name:
+        type: str
+        required: true
+        description: >-
+          The name to assign to the Frigate container instance.
+      frigate_image:
+        type: str
+        required: true
+        description: >-
+          The Docker image to be used for running Frigate.
+      frigate_network_name:
+        type: str
+        required: true
+        description: >-
+          The name of the Docker network that Frigate should connect to.
+
+      frigate_rtsp_stream1:
+        type: str
+        required: true
+        description: >-
+          The RTSP URL for the primary video stream (e.g., door camera).
+      frigate_rtsp_stream2:
+        type: str
+        required: true
+        description: >-
+          The RTSP URL for the secondary video stream (e.g., door camera).
+
+      frigate_data_dir:
+        type: str
+        required: true
+        description: >-
+          The base host directory for Frigate configuration files and recorded
+          media.
+      frigate_config_file:
+        type: str
+        required: true
+        description: >-
+          The full path to the Frigate configuration file (e.g., frigate.yaml)
+          to be mounted inside the container.

@@ -1,0 +1,92 @@
+version: 0.15-1
+
+mqtt:
+  enabled: false
+
+tls:
+  enabled: false
+
+go2rtc:
+  streams:
+    door_camera:
+      - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+
+ffmpeg:
+  hwaccel_args: preset-vaapi
+
+detectors:
+  ov:
+    type: openvino
+    device: CPU
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+objects:
+  track:
+    - person
+
+cameras:
+  door_camera:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+        - path: "{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+    detect:
+      enabled: true
+      fps: 10
+
+    record:
+      enabled: true
+      retain:
+        days: 7
+        mode: all
+      alerts:
+        retain:
+          days: 30
+          mode: motion
+      detections:
+        retain:
+          days: 30
+          mode: motion
+
+    motion:
+      mask:
+        - 0,0.6,0.053,0.832,0.13,0.969,0.185,1,0,1
+        - 0.301,0.326,0.309,0.183,0.357,0.182,0.356,0.336,0.374,0.374,0.364,0.438,0.341,0.464,0.322,0.46
+        - 0.826,0,0.724,0.121,0.725,0.222,0.69,0.298,0.655,0.315,0.544,0.341,0.466,0.565,0.478,0.619,0.644,0.723,0.775,0.822,0.815,0.955,0.9,1,1,1,1,0
+        - 0,0.242,0.264,0.125,0.53,0.059,0.674,0,0,0
+      threshold: 50
+      contour_area: 40
+      improve_contrast: false
+
+    zones:
+      Front:
+        coordinates: 0.454,0.594,0.299,0.826,0,0.49,0,1,1,1,1,0.93
+        loitering_time: 0
+        inertia: 3
+      Garden:
+        coordinates: 0.281,0.202,0.536,0.329,0.73,0,1,0,1,0.93,0.266,0.473,0.322,0.467
+        loitering_time: 3
+        inertia: 3
+    review:
+      alerts:
+        required_zones:
+          - Front
+          - Garden
+
+notifications:
+  enabled: true
+  email: contact.sagnikpradhan@gmail.com

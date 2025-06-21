@@ -1,0 +1,26 @@
+- name: Ensure cloudflared docker network exists
+  community.docker.docker_network:
+    name: "{{ cloudflared_network_name }}"
+    state: present
+
+- name: Start cloudflared service
+  community.docker.docker_compose_v2:
+    project_name: "{{ cloudflared_project_name }}"
+    state: present
+    remove_orphans: true
+    wait: true
+    definition:
+      services:
+        tunnel:
+          container_name: "{{ cloudflared_container_name }}"
+          restart: unless-stopped
+          image: "cloudflare/cloudflared:latest"
+          command: "tunnel run"
+          environment:
+            NO_AUTOUPDATE: "1"
+            TUNNEL_TOKEN: "{{ cloudflared_token }}"
+
+      networks:
+        default:
+          name: "{{ cloudflared_network_name }}"
+          external: true

@@ -1,0 +1,19 @@
+- name: Deploy and start linkding container
+  community.docker.docker_compose_v2:
+    project_name: "{{ ld_project_name }}"
+    state: present
+    definition:
+      services:
+        linkding:
+          container_name: "{{ ld_container_name }}"
+          image: "sissbruecker/linkding:latest"
+          restart: unless-stopped
+          volumes:
+            - "{{ ld_data_dir }}:/etc/linkding/data"
+          environment:
+            LD_SUPERUSER_NAME: "{{ ld_superuser_name }}"
+            LD_SUPERUSER_PASSWORD: "{{ ld_superuser_password }}"
+      networks:
+        default:
+          name: "{{ ld_network_name }}"
+          external: true

@@ -1,0 +1,57 @@
+- name: Ensure Frigate config directory exists
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ frigate_config_file | dirname }}"
+    state: directory
+    mode: "775"
+    recurse: true
+
+- name: Copy Frigate config file
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    src: frigate.yaml
+    dest: "{{ frigate_config_file }}"
+    mode: "775"
+
+- name: Deploy Frigate container
+  community.docker.docker_compose_v2:
+    project_name: "{{ frigate_project_name }}"
+    state: present
+    remove_orphans: true
+    wait: true
+    definition:
+      services:
+        frigate:
+          container_name: "{{ frigate_container_name }}"
+          image: "{{ frigate_image }}"
+          restart: unless-stopped
+          shm_size: "100mb"
+          privileged: true
+          volumes:
+            - /etc/localtime:/etc/localtime:ro
+            - "{{ frigate_data_dir }}/config:/config:rw"
+            - "{{ frigate_data_dir }}/data:/media/frigate:rw"
+            - type: tmpfs
+              target: /tmp/cache
+              tmpfs:
+                size: 1000000000
+          ports:
+            - "8971:8971"
+            - "8554:8554"
+            - "8555:8555/tcp"
+            - "8555:8555/udp"
+          environment:
+            - "FRIGATE_DOOR_CAMERA_RTSP_STREAM1={{ frigate_rtsp_stream1 }}"
+            - "FRIGATE_DOOR_CAMERA_RTSP_STREAM2={{ frigate_rtsp_stream2 }}"
+            - "LIBVA_DRIVER_NAME=radeonsi"
+            - "HSA_OVERRIDE_GFX_VERSION=9.0.0"
+          devices:
+            - "/dev/dri:/dev/dri"
+            - "/dev/kfd:/dev/kfd"
+
+      networks:
+        default:
+          name: "{{ frigate_network_name }}"
+          external: true
