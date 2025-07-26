@@ -1,0 +1,38 @@
+argument_specs:
+  main:
+    short_description: >-
+      Deploys the paisa service with Docker configuration.
+    options:
+      paisa_project_name:
+        type: str
+        required: true
+        description: >-
+          The name assigned to the Docker Compose project for paisa.
+      paisa_container_name:
+        type: str
+        required: true
+        description: >-
+          The name to assign to the paisa container instance.
+      paisa_user_name:
+        type: str
+        required: true
+        description: >-
+          The username for the paisa user account used to log in and
+          manage the service.
+      paisa_user_password:
+        type: str
+        required: true
+        description: >-
+          The password for the paisa user account.
+      paisa_network_name:
+        type: str
+        required: true
+        description: >-
+          The name of the Docker network to which the paisa container should
+          connect.
+      paisa_data_dir:
+        type: str
+        required: true
+        description: >-
+          The host directory used to persist paisa's data, such as bookmarks
+          and settings.

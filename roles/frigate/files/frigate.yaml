@@ -6,14 +6,11 @@ mqtt:
 tls:
   enabled: false
 
-go2rtc:
-  streams:
-    door_camera:
-      - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
-
+# Hardware acceleration through AMD GPU
 ffmpeg:
   hwaccel_args: preset-vaapi
 
+# Object detection through openvino CPU detector
 detectors:
   ov:
     type: openvino
@@ -31,35 +28,48 @@ objects:
   track:
     - person
 
+# go2rtc to reduce connections to the camera
+go2rtc:
+  streams:
+    door_camera:
+      - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+      - "ffmpeg:door_camera#video=copy"
+    door_camera_sub:
+      - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
+      - "ffmpeg:door_camera_sub#video=copy"
+
+# Camera configuration
 cameras:
   door_camera:
     enabled: true
     ffmpeg:
       inputs:
-        - path: "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
+        - path: rtsp://127.0.0.1:8554/door_camera
           input_args: preset-rtsp-restream
           roles:
             - record
-        - path: "{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
+        - path: rtsp://127.0.0.1:8554/door_camera_sub
           input_args: preset-rtsp-restream
           roles:
             - detect
     detect:
       enabled: true
-      fps: 10
+      fps: 5
+      width: 300
+      height: 300
 
     record:
       enabled: true
       retain:
-        days: 7
+        days: 15
         mode: all
       alerts:
         retain:
-          days: 30
+          days: 60
           mode: motion
       detections:
         retain:
-          days: 30
+          days: 60
           mode: motion
 
     motion:
@@ -86,7 +96,3 @@ cameras:
         required_zones:
           - Front
           - Garden
-
-notifications:
-  enabled: true
-  email: contact.sagnikpradhan@gmail.com

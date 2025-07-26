@@ -1,0 +1,16 @@
+- name: Deploy and start paisa container
+  community.docker.docker_compose_v2:
+    project_name: "{{ paisa_project_name }}"
+    state: present
+    definition:
+      services:
+        paisa:
+          container_name: "{{ paisa_container_name }}"
+          image: "ananthakumaran/paisa:latest"
+          restart: unless-stopped
+          volumes:
+            - "{{ paisa_data_dir }}:/root/Documents/paisa:rw"
+      networks:
+        default:
+          name: "{{ paisa_network_name }}"
+          external: true
