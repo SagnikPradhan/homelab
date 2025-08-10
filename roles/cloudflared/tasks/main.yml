@@ -15,6 +15,7 @@
           container_name: "{{ cloudflared_container_name }}"
           restart: unless-stopped
           image: "cloudflare/cloudflared:latest"
+          pull_policy: always
           command: "tunnel run"
           environment:
             NO_AUTOUPDATE: "1"

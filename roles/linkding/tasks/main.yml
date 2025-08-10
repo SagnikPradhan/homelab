@@ -7,6 +7,7 @@
         linkding:
           container_name: "{{ ld_container_name }}"
           image: "sissbruecker/linkding:latest"
+          pull_policy: always
           restart: unless-stopped
           volumes:
             - "{{ ld_data_dir }}:/etc/linkding/data"

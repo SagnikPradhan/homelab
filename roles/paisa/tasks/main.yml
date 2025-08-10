@@ -7,6 +7,7 @@
         paisa:
           container_name: "{{ paisa_container_name }}"
           image: "ananthakumaran/paisa:latest"
+          pull_policy: always
           restart: unless-stopped
           volumes:
             - "{{ paisa_data_dir }}:/root/Documents/paisa:rw"
