@@ -7,6 +7,10 @@ mqtt:
 tls:
   enabled: false
 
+# Logging settings
+logger:
+  default: info
+
 # Hardware acceleration through AMD GPU
 ffmpeg:
   hwaccel_args: preset-vaapi
@@ -23,6 +27,18 @@ objects:
     - cat
     - dog
     - bird
+
+semantic_search:
+  enabled: true
+  reindex: false
+
+# Gen AI
+genai:
+  enabled: true
+  provider: openai
+  api_key: "{FRIGATE_OPENAI_API_KEY}"
+  model: gpt-5
+  prompt: Describe the person in 30-50 words. How old are they? What gender are they? What are they wearing? What are they doing?
 
 review:
   alerts:
@@ -60,6 +76,11 @@ cameras:
       fps: 10
       width: 640
       height: 480
+
+    genai:
+      enabled: true
+      objects:
+        - person
 
     record:
       enabled: true

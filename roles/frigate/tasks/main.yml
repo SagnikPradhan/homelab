@@ -19,46 +19,32 @@
     owner: "{{ ansible_user_id }}"
     group: docker
 
+- name: Ensure Frigate project directory exists
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ frigate_project_directory }}"
+    state: directory
+    recurse: true
+    mode: "775"
+    owner: "{{ ansible_user_id }}"
+    group: docker
+
+- name: Copy Frigate docker compose file
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    backup: true
+    src: docker-compose.yml
+    dest: "{{ frigate_project_directory }}/docker-compose.yml"
+    mode: "775"
+    owner: "{{ ansible_user_id }}"
+    group: docker
+
 - name: Deploy Frigate container
   community.docker.docker_compose_v2:
     project_name: "{{ frigate_project_name }}"
-    state: restarted
+    project_src: "{{ frigate_project_directory }}"
+    state: present
     remove_orphans: true
     wait: true
-    definition:
-      services:
-        frigate:
-          container_name: "{{ frigate_container_name }}"
-          image: "{{ frigate_image }}"
-          restart: always
-          shm_size: "150mb"
-          privileged: true
-          mem_swappiness: 0
-          volumes:
-            - /dev:/dev
-            - /etc/localtime:/etc/localtime:ro
-            - "{{ frigate_data_dir }}/config:/config:rw"
-            - "{{ frigate_data_dir }}/data:/media/frigate:rw"
-            - type: tmpfs
-              target: /tmp/cache
-              tmpfs:
-                size: 2000000000
-          ports:
-            - "8971:8971"
-            - "8554:8554"
-            - "8555:8555/tcp"
-            - "8555:8555/udp"
-          environment:
-            - "FRIGATE_DOOR_CAMERA_RTSP_STREAM1={{ frigate_rtsp_stream1 }}"
-            - "FRIGATE_DOOR_CAMERA_RTSP_STREAM2={{ frigate_rtsp_stream2 }}"
-            - "LIBVA_DRIVER_NAME=radeonsi"
-            - "HSA_OVERRIDE_GFX_VERSION=9.0.0"
-          devices:
-            - "/dev/apex_0:/dev/apex_0"
-            - "/dev/dri:/dev/dri"
-            - "/dev/kfd:/dev/kfd"
-
-      networks:
-        default:
-          name: "{{ frigate_network_name }}"
-          external: true
