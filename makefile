@@ -17,3 +17,7 @@ encrypt:
 	@ansible-vault encrypt_string \
 		--vault-password-file <(echo "$(ANSIBLE_VAULT_PASSWORD)") \
 		--prompt $(ARGS)
+
+encrypt-file:
+	@ansible-vault encrypt \
+		--vault-password-file <(echo "$(ANSIBLE_VAULT_PASSWORD)") $(ARGS)

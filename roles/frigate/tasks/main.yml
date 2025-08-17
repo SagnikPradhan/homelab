@@ -35,6 +35,7 @@
           privileged: true
           mem_swappiness: 0
           volumes:
+            - /dev:/dev
             - /etc/localtime:/etc/localtime:ro
             - "{{ frigate_data_dir }}/config:/config:rw"
             - "{{ frigate_data_dir }}/data:/media/frigate:rw"
@@ -53,6 +54,7 @@
             - "LIBVA_DRIVER_NAME=radeonsi"
             - "HSA_OVERRIDE_GFX_VERSION=9.0.0"
           devices:
+            - "/dev/apex_0:/dev/apex_0"
             - "/dev/dri:/dev/dri"
             - "/dev/kfd:/dev/kfd"
 

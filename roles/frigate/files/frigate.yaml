@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://demo.frigate.video/api/config/schema.json
 version: 0.15-1
 
 mqtt:
@@ -12,21 +13,23 @@ ffmpeg:
 
 # Object detection through openvino CPU detector
 detectors:
-  ov:
-    type: openvino
-    device: CPU
-
-model:
-  width: 300
-  height: 300
-  input_tensor: nhwc
-  input_pixel_format: bgr
-  path: /openvino-model/ssdlite_mobilenet_v2.xml
-  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+  coral:
+    type: edgetpu
+    device: pci
 
 objects:
   track:
     - person
+    - cat
+    - dog
+    - bird
+
+review:
+  alerts:
+    labels:
+      - person
+      - cat
+      - dog
 
 # go2rtc to reduce connections to the camera
 go2rtc:
@@ -54,9 +57,9 @@ cameras:
             - detect
     detect:
       enabled: true
-      fps: 5
-      width: 300
-      height: 300
+      fps: 10
+      width: 640
+      height: 480
 
     record:
       enabled: true
@@ -65,11 +68,11 @@ cameras:
         mode: all
       alerts:
         retain:
-          days: 60
+          days: 30
           mode: motion
       detections:
         retain:
-          days: 60
+          days: 30
           mode: motion
 
     motion:
@@ -82,17 +85,6 @@ cameras:
       contour_area: 40
       improve_contrast: false
 
-    zones:
-      Front:
-        coordinates: 0.454,0.594,0.299,0.826,0,0.49,0,1,1,1,1,0.93
-        loitering_time: 0
-        inertia: 3
-      Garden:
-        coordinates: 0.281,0.202,0.536,0.329,0.73,0,1,0,1,0.93,0.266,0.473,0.322,0.467
-        loitering_time: 3
-        inertia: 3
-    review:
-      alerts:
-        required_zones:
-          - Front
-          - Garden
+notifications:
+  email: contact.sagnikpradhan@gmail.com
+  enabled: true

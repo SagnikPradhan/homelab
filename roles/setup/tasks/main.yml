@@ -1,3 +1,20 @@
+- name: Create a user 'backupuser'
+  become: true
+  become_user: root
+  ansible.builtin.user:
+    name: "{{ backup_user }}"
+    create_home: true
+
+- name: Add backup SSH key
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    dest: "{{ backup_ssh_key_path }}"
+    content: "{{ backup_ssh_key_content }}"
+    mode: "0600"
+    owner: "{{ backup_user }}"
+    group: "{{ backup_user }}"
+
 - name: Update APT package cache
   become: true
   become_user: root
