@@ -113,12 +113,12 @@
   roles:
     - role: setup
       vars:
-        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}'
-        backup_user: "backupuser"
-        backup_ssh_key_path: "/home/backupuser/.ssh/backup"
-        backup_ssh_key_content: "{{ backup_ssh_key }}"
-        backup_ssh_key_public_content: "{{ backup_ssh_key_public }}"
-        backup_ssh_host: "{{ backup_ssh_user }}@{{ backup_ssh_host }}:{{ backup_ssh_port }}"
+        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+        setup_backup_user: "backupuser"
+        setup_backup_ssh_key_path: "/home/backupuser/.ssh/backup"
+        setup_backup_ssh_key_content: "{{ backup_ssh_key }}"
+        setup_backup_ssh_key_public_content: "{{ backup_ssh_key_public }}"
+        setup_backup_ssh_host: "{{ backup_ssh_user }}@{{ backup_ssh_host }}:{{ backup_ssh_port }}"
 
     - role: borgbase.ansible_role_borgbackup
       become: true
@@ -129,7 +129,7 @@
       borg_user: "backupuser"
       borg_group: "backupuser"
       borgmatic_timer: systemd
-      borgmatic_timer_hour: 3
+      borgmatic_timer_hour: 1
       borgmatic_timer_minute: 0
       borg_retention_policy:
         keep_hourly: 6
@@ -153,6 +153,7 @@
 
     - role: frigate
       vars:
+        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
         frigate_openai_key: "{{ openai_key }}"
         frigate_rtsp_stream1: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream1"
         frigate_rtsp_stream2: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream2"
@@ -160,11 +161,10 @@
         frigate_project_name: frigate
         frigate_project_directory: /home/sagnik/frigate
         frigate_ollama_network_name: ollama
-        frigate_image: ghcr.io/blakeblackshear/frigate:0.16.0-rocm
+        frigate_image: ghcr.io/blakeblackshear/frigate:0.16.2-rocm
         frigate_data_dir: /media/homelab/data/frigate
         frigate_config_file: /media/homelab/data/frigate/config/config.yml
         frigate_network_name: cloudflared
-        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}'
 
     - role: paisa
       vars:

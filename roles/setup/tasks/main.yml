@@ -2,26 +2,28 @@
   become: true
   become_user: root
   ansible.builtin.user:
-    name: "{{ backup_user }}"
+    name: "{{ setup_backup_user }}"
     create_home: true
 
 - name: Add backup SSH key
   become: true
   become_user: root
   ansible.builtin.copy:
-    dest: "{{ backup_ssh_key_path }}"
-    content: "{{ backup_ssh_key_content }}"
+    dest: "{{ setup_backup_ssh_key_path }}"
+    content: "{{ setup_backup_ssh_key_content }}"
     mode: "0600"
-    owner: "{{ backup_user }}"
-    group: "{{ backup_user }}"
+    owner: "{{ setup_backup_user }}"
+    group: "{{ setup_backup_user }}"
 
-- name: Update APT package cache
+- name: Add a host in the configuration
   become: true
   become_user: root
-  ansible.builtin.apt:
-    update_cache: true
-    cache_valid_time: 3600
-  when: ansible_os_family == "Debian"
+  community.general.ssh_config:
+    user: "{{ setup_backup_user }}"
+    host: "*"
+    state: present
+    other_options:
+      serveraliveinterval: "120"
 
 - name: Upgrade all APT packages
   become: true
@@ -30,7 +32,14 @@
     upgrade: dist
     autoremove: true
     update_cache: true
+    cache_valid_time: 3600
   when: ansible_os_family == "Debian"
+  register: setup_apt_upgrade
+
+- name: Print APT upgrade
+  ansible.builtin.debug:
+    msg: "{{ setup_apt_upgrade.stdout_lines }}"
+  when: setup_apt_upgrade.stdout_lines is defined
 
 - name: Remove unused Docker data
   community.docker.docker_prune:
@@ -45,7 +54,7 @@
   become_user: root
   ansible.builtin.stat:
     path: /var/run/reboot-required
-  register: reboot_required
+  register: setup_reboot_required
   when: ansible_os_family == "Debian"
 
 - name: Reboot the server if needed
@@ -53,4 +62,4 @@
   become_user: root
   ansible.builtin.reboot:
     reboot_timeout: 600
-  when: reboot_required.stat.exists
+  when: setup_reboot_required.stat.exists

@@ -14,7 +14,7 @@ logger:
 ffmpeg:
   hwaccel_args: preset-vaapi
 
-# Object detection through openvino CPU detector
+# Object detection through edge TPU
 detectors:
   coral:
     type: edgetpu
@@ -30,17 +30,14 @@ objects:
     person:
       min_area: 0.075
 
+# Semantic Search
 semantic_search:
-  enabled: true
+  enabled: false
   reindex: false
 
 # Gen AI
 genai:
-  enabled: true
-  provider: openai
-  api_key: "{FRIGATE_OPENAI_API_KEY}"
-  model: gpt-5
-  prompt: Describe the person in 30-50 words. How old are they? What gender are they? What are they wearing? What are they doing?
+  enabled: false
 
 review:
   alerts:
@@ -87,7 +84,7 @@ cameras:
     record:
       enabled: true
       retain:
-        days: 15
+        days: 10
         mode: all
       alerts:
         retain:
