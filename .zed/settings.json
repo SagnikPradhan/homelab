@@ -1,0 +1,27 @@
+{
+  "file_types": {
+    "Ansible": ["**/tasks/*.yml", "main.yml"],
+  },
+
+  "lsp": {
+    "yaml-language-server": {
+      "settings": {
+        "yaml": {
+          "customTags": ["!vault scalar"],
+        },
+      },
+    },
+
+    "ansible": {
+      "settings": {
+        "ansible": { "path": "ansible" },
+        "executionEnvironment": { "enabled": false },
+        "python": { "interpreterPath": "python3" },
+        "validation": {
+          "enabled": true,
+          "lint": { "enabled": true, "path": "ansible-lint" },
+        },
+      },
+    },
+  },
+}

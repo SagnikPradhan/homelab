@@ -2,8 +2,9 @@ version: 0.15-1
 
 mqtt:
   enabled: false
-
 tls:
+  enabled: false
+auth:
   enabled: false
 
 # Logging settings
@@ -26,9 +27,6 @@ objects:
     - cat
     - dog
     - bird
-  filters:
-    person:
-      min_area: 0.075
 
 # Semantic Search
 semantic_search:
@@ -72,14 +70,9 @@ cameras:
             - detect
     detect:
       enabled: true
-      fps: 10
-      width: 640
-      height: 480
-
-    genai:
-      enabled: true
-      objects:
-        - person
+      fps: 30
+      width: 1280
+      height: 960
 
     record:
       enabled: true
@@ -97,15 +90,9 @@ cameras:
 
     motion:
       mask:
-        - 0,0.6,0.053,0.832,0.13,0.969,0.185,1,0,1
-        - 0.301,0.326,0.309,0.183,0.357,0.182,0.356,0.336,0.374,0.374,0.364,0.438,0.341,0.464,0.322,0.46
-        - 0.826,0,0.724,0.121,0.725,0.222,0.69,0.298,0.655,0.315,0.544,0.341,0.466,0.565,0.478,0.619,0.644,0.723,0.775,0.822,0.815,0.955,0.9,1,1,1,1,0
-        - 0,0.242,0.264,0.125,0.53,0.059,0.674,0,0,0
+        - 0.301,0.326,0.306,0.309,0.341,0.304,0.365,0.319,0.373,0.356,0.361,0.393,0.369,0.44,0.341,0.464,0.322,0.46
+        - 0.819,0,0.774,0.059,0.717,0.121,0.718,0.222,0.7,0.268,0.651,0.255,0.598,0.22,0.57,0.252,0.506,0.269,0.47,0.303,0.445,0.402,0.513,0.524,0.488,0.624,0.637,0.723,0.768,0.822,0.808,0.955,0.893,1,0.993,1,0.993,0
+        - 0,0.216,0.315,0,0,0
       threshold: 50
       contour_area: 40
       improve_contrast: false
-
-notifications:
-  email: contact.sagnikpradhan@gmail.com
-  enabled: true
-  cooldown: 120

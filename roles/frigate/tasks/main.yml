@@ -12,6 +12,7 @@
 - name: Copy Frigate config file
   become: true
   become_user: root
+  register: copy_frigate_config
   ansible.builtin.copy:
     src: frigate.yaml
     dest: "{{ frigate_config_file }}"
@@ -45,6 +46,6 @@
   community.docker.docker_compose_v2:
     project_name: "{{ frigate_project_name }}"
     project_src: "{{ frigate_project_directory }}"
-    state: present
+    state: "{{ 'restarted' if copy_frigate_config.changed else 'present' }}"
     remove_orphans: true
     wait: true
