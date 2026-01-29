@@ -161,7 +161,7 @@
         frigate_project_name: frigate
         frigate_project_directory: /home/sagnik/frigate
         frigate_ollama_network_name: ollama
-        frigate_image: ghcr.io/blakeblackshear/frigate:0.16.2-rocm
+        frigate_image: ghcr.io/blakeblackshear/frigate:0.16.4-rocm
         frigate_data_dir: /media/homelab/data/frigate
         frigate_config_file: /media/homelab/data/frigate/config/config.yml
         frigate_network_name: cloudflared
