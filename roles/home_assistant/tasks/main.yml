@@ -1,0 +1,65 @@
+- name: Ensure mosquitto config directory exists
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ mosquitto_data_dir }}/config"
+    state: directory
+    recurse: true
+    mode: "775"
+    owner: "{{ ansible_user_id }}"
+    group: docker
+
+- name: Copy mosquitto config file
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    backup: true
+    src: mosquitto.conf
+    dest: "{{ mosquitto_data_dir }}/config/mosquitto.conf"
+    mode: "775"
+    owner: "{{ ansible_user_id }}"
+    group: docker
+
+- name: Copy mosquitto password file
+  ansible.builtin.copy:
+    content: "{{ mosquitto_pwfile }}"
+    dest: "{{ mosquitto_data_dir }}/pwfile"
+    mode: "775"
+    owner: "{{ ansible_user_id }}"
+    group: docker
+
+- name: Start home assistant service
+  community.docker.docker_compose_v2:
+    project_name: "home_assistant"
+    state: present
+    remove_orphans: true
+    wait: true
+    definition:
+      services:
+        home_assistant:
+          restart: unless-stopped
+          container_name: home_assistant
+          image: "{{ home_assistant_image }}"
+          volumes:
+            - "{{ home_assistant_data_dir }}:/config"
+            - "/etc/localtime:/etc/localtime:ro"
+          ports:
+            - 8123:8123
+          environment:
+            TZ: Asia/Kolkata
+
+        mosquitto:
+          restart: unless-stopped
+          container_name: mosquitto
+          image: "{{ mosquitto_image }}"
+          volumes:
+            - "{{ mosquitto_data_dir }}/data:/mosquitto/data:rw"
+            - "{{ mosquitto_data_dir }}/config:/mosquitto/config:rw"
+            - "{{ mosquitto_data_dir }}/pwfile:/etc/mosquitto/pwfile:ro"
+          ports:
+            - 1883:1883
+
+      networks:
+        default:
+          name: "{{ homelab_network_name }}"
+          external: true

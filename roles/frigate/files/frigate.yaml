@@ -1,25 +1,41 @@
 version: 0.15-1
 
 mqtt:
-  enabled: false
+  enabled: true
+  host: mosquitto
+  user: "{FRIGATE_MQTT_USERNAME}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+
 tls:
   enabled: false
 auth:
   enabled: false
+proxy:
+  default_role: admin
 
 # Logging settings
 logger:
   default: info
+  logs:
+    frigate.record.maintainer: debug
 
 # Hardware acceleration through AMD GPU
 ffmpeg:
   hwaccel_args: preset-vaapi
+  apple_compatibility: true
 
 # Object detection through edge TPU
 detectors:
   coral:
     type: edgetpu
     device: pci
+
+model:
+  model_type: yolo-generic
+  width: 320
+  height: 320
+  path: /config/yolov9-s-relu6-best_320_int8_edgetpu.tflite
+  labelmap_path: /config/labels-coco17.txt
 
 objects:
   track:
@@ -68,14 +84,14 @@ cameras:
           input_args: preset-rtsp-restream
           roles:
             - detect
+
     detect:
       enabled: true
       fps: 30
-      width: 1280
-      height: 960
 
     record:
       enabled: true
+      sync_recordings: true
       retain:
         days: 10
         mode: all

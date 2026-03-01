@@ -1,8 +1,8 @@
 services:
   frigate:
-    container_name: "{{ frigate_container_name }}"
+    container_name: "frigate"
     image: "{{ frigate_image }}"
-    restart: always
+    restart: unless-stopped
     shm_size: "150mb"
     privileged: true
     mem_swappiness: 0
@@ -21,9 +21,10 @@ services:
       - "8555:8555/tcp"
       - "8555:8555/udp"
     environment:
-      - "FRIGATE_OPENAI_API_KEY={{ frigate_openai_key }}"
       - "FRIGATE_DOOR_CAMERA_RTSP_STREAM1={{ frigate_rtsp_stream1 }}"
       - "FRIGATE_DOOR_CAMERA_RTSP_STREAM2={{ frigate_rtsp_stream2 }}"
+      - "FRIGATE_MQTT_USERNAME={{ frigate_mqtt_username }}"
+      - "FRIGATE_MQTT_PASSWORD={{ frigate_mqtt_password }}"
       - "LIBVA_DRIVER_NAME=radeonsi"
       - "HSA_OVERRIDE_GFX_VERSION=9.0.0"
     devices:
@@ -33,5 +34,5 @@ services:
 
 networks:
   default:
-    name: "{{ frigate_network_name }}"
+    name: "{{ homelab_network_name }}"
     external: true

@@ -5,6 +5,16 @@
     name: "{{ setup_backup_user }}"
     create_home: true
 
+- name: Ensure backup SSH directory exists
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ setup_backup_ssh_key_path | dirname }}"
+    state: directory
+    owner: "{{ setup_backup_user }}"
+    group: "{{ setup_backup_user }}"
+    mode: "0700"
+
 - name: Add backup SSH key
   become: true
   become_user: root

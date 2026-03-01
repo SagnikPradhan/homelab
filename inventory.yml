@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/inventory.json
 local:
   hosts:
-    lserver:
-      ansible_host: lserver
-      ansible_python_interpreter: /usr/bin/python3.12
+    hserver_00:
+      ansible_host: hserver_00
+      ansible_python_interpreter: /usr/bin/python3
 
 all:
   children:
