@@ -34,7 +34,7 @@ model:
   model_type: yolo-generic
   width: 320
   height: 320
-  path: /config/yolov9-s-relu6-best_320_int8_edgetpu.tflite
+  path: /config/yolov9-s-hardswish-tpumax_320_int8_edgetpu.tflite
   labelmap_path: /config/labels-coco17.txt
 
 objects:
@@ -66,9 +66,9 @@ go2rtc:
     door_camera:
       - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM1}"
       - "ffmpeg:door_camera#video=copy"
-    door_camera_sub:
-      - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
-      - "ffmpeg:door_camera_sub#video=copy"
+    # door_camera_sub:
+    #   - "{FRIGATE_DOOR_CAMERA_RTSP_STREAM2}"
+    #   - "ffmpeg:door_camera_sub#video=copy"
 
 # Camera configuration
 cameras:
@@ -80,15 +80,20 @@ cameras:
           input_args: preset-rtsp-restream
           roles:
             - record
-        - path: rtsp://127.0.0.1:8554/door_camera_sub
-          input_args: preset-rtsp-restream
-          roles:
             - detect
-
+        # - path: rtsp://127.0.0.1:8554/door_camera_sub
+        #   input_args: preset-rtsp-restream
+        #   roles:
+        #     - detect
+    live:
+      streams:
+        Main Stream: door_camera
+        # Secondary Stream: door_camera_sub
     detect:
       enabled: true
-      fps: 30
-
+      fps: 5
+      width: 960
+      height: 540
     record:
       enabled: true
       sync_recordings: true
@@ -103,7 +108,6 @@ cameras:
         retain:
           days: 30
           mode: motion
-
     motion:
       mask:
         - 0.301,0.326,0.306,0.309,0.341,0.304,0.365,0.319,0.373,0.356,0.361,0.393,0.369,0.44,0.341,0.464,0.322,0.46

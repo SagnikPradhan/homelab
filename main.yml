@@ -49,7 +49,7 @@
         frigate_mqtt_username: "{{ mqtt_username }}"
         frigate_mqtt_password: "{{ mqtt_password }}"
         frigate_project_directory: /home/sagnik/frigate
-        frigate_image: ghcr.io/blakeblackshear/frigate:0.17.0-rocm
+        frigate_image: ghcr.io/blakeblackshear/frigate:0.17.1-rocm
         frigate_data_dir: /media/homelab/data/frigate
         frigate_config_file: /media/homelab/data/frigate/config/config.yml
 
