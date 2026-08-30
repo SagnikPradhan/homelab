@@ -1,4 +1,4 @@
-version: 0.15-1
+version: 0.17-0
 
 mqtt:
   enabled: true
@@ -50,8 +50,7 @@ semantic_search:
   reindex: false
 
 # Gen AI
-genai:
-  enabled: false
+genai: {}
 
 review:
   alerts:
@@ -97,9 +96,8 @@ cameras:
     record:
       enabled: true
       sync_recordings: true
-      retain:
+      continuous:
         days: 10
-        mode: all
       alerts:
         retain:
           days: 30

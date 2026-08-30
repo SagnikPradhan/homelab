@@ -1,0 +1,41 @@
+version: "3"
+
+vars:
+  ANSIBLE_VAULT_PASSWORD:
+    secret: true
+    sh: bw get notes 7adca851-b1aa-41d9-949d-b301011026a2
+  ANSIBLE_BECOME_ROOT_PASSWORD:
+    secret: true
+    sh: bw get notes b1fc68e1-9f91-4e79-bc2c-b303014cc1c4
+
+tasks:
+  server-setup:
+    requires:
+      vars: [ANSIBLE_VAULT_PASSWORD, ANSIBLE_BECOME_ROOT_PASSWORD]
+    cmd: bash -c "ansible-playbook -i inventory.yml main.yml
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}})"
+    env:
+      ANSIBLE_BECOME_PASSWORD: "{{.ANSIBLE_BECOME_ROOT_PASSWORD}}"
+
+  server-diff:
+    requires:
+      vars: [ANSIBLE_VAULT_PASSWORD, ANSIBLE_BECOME_ROOT_PASSWORD]
+    cmd: bash -c "ansible-playbook -i inventory.yml main.yml
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}})
+      --check --diff"
+    env:
+      ANSIBLE_BECOME_PASSWORD: "{{.ANSIBLE_BECOME_ROOT_PASSWORD}}"
+
+  encrypt:
+    interactive: true
+    requires:
+      vars: [ANSIBLE_VAULT_PASSWORD]
+    cmd: bash -c "ansible-vault encrypt_string
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}})
+      --prompt"
+
+  encrypt-file:
+    requires:
+      vars: [ANSIBLE_VAULT_PASSWORD]
+    cmd: bash -c "ansible-vault encrypt
+      --vault-password-file  <(echo {{.ANSIBLE_VAULT_PASSWORD}})"

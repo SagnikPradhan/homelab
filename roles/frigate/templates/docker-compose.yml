@@ -2,6 +2,7 @@ services:
   frigate:
     container_name: "frigate"
     image: "{{ frigate_image }}"
+    pull_policy: always
     restart: unless-stopped
     shm_size: "150mb"
     privileged: true
@@ -34,5 +35,5 @@ services:
 
 networks:
   default:
-    name: "{{ homelab_network_name }}"
+    name: "{{ frigate_network_name }}"
     external: true

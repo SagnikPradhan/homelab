@@ -2,7 +2,7 @@
   become: true
   become_user: root
   ansible.builtin.file:
-    path: "{{ mosquitto_data_dir }}/config"
+    path: "{{ home_assistant_mosquitto_data_dir }}/config"
     state: directory
     recurse: true
     mode: "775"
@@ -15,15 +15,15 @@
   ansible.builtin.template:
     backup: true
     src: mosquitto.conf
-    dest: "{{ mosquitto_data_dir }}/config/mosquitto.conf"
+    dest: "{{ home_assistant_mosquitto_data_dir }}/config/mosquitto.conf"
     mode: "775"
     owner: "{{ ansible_user_id }}"
     group: docker
 
 - name: Copy mosquitto password file
   ansible.builtin.copy:
-    content: "{{ mosquitto_pwfile }}"
-    dest: "{{ mosquitto_data_dir }}/pwfile"
+    content: "{{ home_assistant_mosquitto_pwfile }}"
+    dest: "{{ home_assistant_mosquitto_data_dir }}/pwfile"
     mode: "775"
     owner: "{{ ansible_user_id }}"
     group: docker
@@ -34,12 +34,14 @@
     state: present
     remove_orphans: true
     wait: true
+    pull: always
     definition:
       services:
         home_assistant:
           restart: unless-stopped
           container_name: home_assistant
           image: "{{ home_assistant_image }}"
+          pull_policy: always
           volumes:
             - "{{ home_assistant_data_dir }}:/config"
             - "/etc/localtime:/etc/localtime:ro"
@@ -51,15 +53,16 @@
         mosquitto:
           restart: unless-stopped
           container_name: mosquitto
-          image: "{{ mosquitto_image }}"
+          image: "{{ home_assistant_mosquitto_image }}"
+          pull_policy: always
           volumes:
-            - "{{ mosquitto_data_dir }}/data:/mosquitto/data:rw"
-            - "{{ mosquitto_data_dir }}/config:/mosquitto/config:rw"
-            - "{{ mosquitto_data_dir }}/pwfile:/etc/mosquitto/pwfile:ro"
+            - "{{ home_assistant_mosquitto_data_dir }}/data:/mosquitto/data:rw"
+            - "{{ home_assistant_mosquitto_data_dir }}/config:/mosquitto/config:rw"
+            - "{{ home_assistant_mosquitto_data_dir }}/pwfile:/etc/mosquitto/pwfile:ro"
           ports:
             - 1883:1883
 
       networks:
         default:
-          name: "{{ homelab_network_name }}"
+          name: "{{ home_assistant_network_name }}"
           external: true

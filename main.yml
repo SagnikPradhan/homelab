@@ -37,13 +37,13 @@
 
     - role: cloudflared
       vars:
-        homelab_network_name: cloudflared
+        cloudflared_network_name: cloudflared
         cloudflared_token: "{{ cloudflared_tunnel_token }}"
 
     - role: frigate
       vars:
-        homelab_network_name: cloudflared
         ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+        frigate_network_name: cloudflared
         frigate_rtsp_stream1: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream1"
         frigate_rtsp_stream2: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream2"
         frigate_mqtt_username: "{{ mqtt_username }}"
@@ -55,18 +55,16 @@
 
     - role: paisa
       vars:
-        homelab_network_name: cloudflared
+        paisa_network_name: cloudflared
         paisa_image: ananthakumaran/paisa:latest
         paisa_data_dir: /media/homelab/data/paisa
 
     - role: home_assistant
       vars:
         ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
-        homelab_network_name: cloudflared
+        home_assistant_network_name: cloudflared
         home_assistant_data_dir: /media/homelab/data/home_assistant
-        home_assistant_image: ghcr.io/home-assistant/home-assistant:stable
-        mosquitto_data_dir: /media/homelab/data/mosquitto
-        mosquitto_image: eclipse-mosquitto:latest
-        mosquitto_username: "{{ mqtt_username }}"
-        mosquitto_password: "{{ mqtt_password }}"
-        mosquitto_pwfile: "{{ mqtt_password_file }}"
+        home_assistant_image: ghcr.io/home-assistant/home-assistant:latest
+        home_assistant_mosquitto_data_dir: /media/homelab/data/mosquitto
+        home_assistant_mosquitto_image: eclipse-mosquitto:latest
+        home_assistant_mosquitto_pwfile: "{{ mqtt_password_file }}"

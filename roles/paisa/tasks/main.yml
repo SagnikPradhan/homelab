@@ -2,6 +2,8 @@
   community.docker.docker_compose_v2:
     project_name: "paisa"
     state: present
+    wait: true
+    pull: always
     definition:
       services:
         paisa:
@@ -13,5 +15,5 @@
             - "{{ paisa_data_dir }}:/root/Documents/paisa:rw"
       networks:
         default:
-          name: "{{ homelab_network_name }}"
+          name: "{{ paisa_network_name }}"
           external: true
