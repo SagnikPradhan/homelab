@@ -12,6 +12,7 @@
 - name: Download YOLOv9 TFLite model
   become: true
   become_user: root
+  register: frigate_copied_model
   ansible.builtin.get_url:
     url: https://github.com/dbro/frigate-detector-edgetpu-yolo9/releases/download/v1.5/yolov9-s-hardswish-tpumax_320_int8_edgetpu.tflite
     dest: "{{ frigate_config_file | dirname }}/yolov9-s-hardswish-tpumax_320_int8_edgetpu.tflite"
@@ -22,6 +23,7 @@
 - name: Download YOLOv9 COCO17 label map
   become: true
   become_user: root
+  register: frigate_copied_model_labels
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/dbro/frigate-detector-edgetpu-yolo9/refs/heads/main/labels-coco17.txt
     dest: "{{ frigate_config_file | dirname }}/labels-coco17.txt"
@@ -32,6 +34,7 @@
 - name: Copy Frigate config file
   become: true
   become_user: root
+  register: frigate_copied_config
   ansible.builtin.copy:
     src: frigate.yaml
     dest: "{{ frigate_config_file }}"
@@ -67,5 +70,11 @@
     project_src: "{{ frigate_project_directory }}"
     state: present
     remove_orphans: true
+    recreate: >-
+      {{ 'always' if
+         frigate_copied_model.changed or
+         frigate_copied_model_labels.changed or
+         frigate_copied_config.changed
+         else 'auto' }}
     wait: true
     pull: always

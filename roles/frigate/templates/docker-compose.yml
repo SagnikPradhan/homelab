@@ -21,6 +21,7 @@ services:
       - "8554:8554"
       - "8555:8555/tcp"
       - "8555:8555/udp"
+      - "1984:1984"
     environment:
       - "FRIGATE_DOOR_CAMERA_RTSP_STREAM1={{ frigate_rtsp_stream1 }}"
       - "FRIGATE_DOOR_CAMERA_RTSP_STREAM2={{ frigate_rtsp_stream2 }}"

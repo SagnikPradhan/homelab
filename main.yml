@@ -12,29 +12,6 @@
         setup_backup_ssh_key_public_content: "{{ backup_ssh_key_public }}"
         setup_backup_ssh_host: "{{ backup_ssh_user }}@{{ backup_ssh_host }}:{{ backup_ssh_port }}"
 
-    - role: borgbase.ansible_role_borgbackup
-      become: true
-      borg_encryption_passphrase: "{{ backup_encryption_passphrase }}"
-      borg_repository: ssh://{{ backup_ssh_user }}@{{ backup_ssh_host }}:{{ backup_ssh_port }}/{{ backup_ssh_directory }}
-      borg_ssh_command: "ssh -i /home/backupuser/.ssh/backup"
-      borg_ssh_key_name: "backup"
-      borg_user: "backupuser"
-      borg_group: "backupuser"
-      borgmatic_timer: systemd
-      borgmatic_timer_hour: 1
-      borgmatic_timer_minute: 0
-      borg_retention_policy:
-        keep_hourly: 6
-        keep_daily: 3
-        keep_weekly: 2
-      borg_source_directories: ["/media/homelab/data"]
-      borgmatic_hooks:
-        sqlite_databases:
-          - name: frigate
-            path: /media/homelab/data/frigate/config/frigate.db
-      vars:
-        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}'
-
     - role: cloudflared
       vars:
         cloudflared_network_name: cloudflared
@@ -49,7 +26,7 @@
         frigate_mqtt_username: "{{ mqtt_username }}"
         frigate_mqtt_password: "{{ mqtt_password }}"
         frigate_project_directory: /home/sagnik/frigate
-        frigate_image: ghcr.io/blakeblackshear/frigate:0.17.1-rocm
+        frigate_image: ghcr.io/blakeblackshear/frigate:0.18.2-rocm
         frigate_data_dir: /media/homelab/data/frigate
         frigate_config_file: /media/homelab/data/frigate/config/config.yml
 
