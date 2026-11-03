@@ -45,3 +45,10 @@
         home_assistant_mosquitto_data_dir: /media/homelab/data/mosquitto
         home_assistant_mosquitto_image: eclipse-mosquitto:latest
         home_assistant_mosquitto_pwfile: "{{ mqtt_password_file }}"
+
+    - role: calibre_web_automated
+      vars:
+        ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+        calibre_web_automated_network_name: cloudflared
+        calibre_web_automated_image: ghcr.io/crocodilestick/calibre-web-automated:v4.0.8
+        calibre_web_automated_data_dir: /media/homelab/data/calibre_web_automated

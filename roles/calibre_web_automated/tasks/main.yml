@@ -1,0 +1,39 @@
+- name: Ensure Calibre-Web-Automated directories exist
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0775"
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+  loop:
+    - "{{ calibre_web_automated_data_dir }}/config"
+    - "{{ calibre_web_automated_data_dir }}/ingest"
+    - "{{ calibre_web_automated_data_dir }}/library"
+
+- name: Deploy and start Calibre-Web-Automated container
+  community.docker.docker_compose_v2:
+    project_name: "calibre-web-automated"
+    state: present
+    wait: true
+    pull: always
+    definition:
+      services:
+        calibre-web-automated:
+          container_name: "calibre-web-automated"
+          image: "{{ calibre_web_automated_image }}"
+          pull_policy: always
+          restart: unless-stopped
+          environment:
+            PUID: "{{ ansible_user_uid }}"
+            PGID: "{{ ansible_user_gid }}"
+            TZ: "Asia/Kolkata"
+          volumes:
+            - "{{ calibre_web_automated_data_dir }}/config:/config:rw"
+            - "{{ calibre_web_automated_data_dir }}/ingest:/cwa-book-ingest:rw"
+            - "{{ calibre_web_automated_data_dir }}/library:/calibre-library:rw"
+      networks:
+        default:
+          name: "{{ calibre_web_automated_network_name }}"
+          external: true
