@@ -50,14 +50,14 @@ def stat(title, expr, unit="percent", thr=None, dec=None, lo=None, hi=None, mapp
     decimals = {"decimals": dec} if dec is not None else {}
     defaults = {"unit": unit, "thresholds": thr or steps(), "mappings": list(mappings), **bounds(lo, hi), **decimals}
     options = {"colorMode": "value", "graphMode": "area", "reduceOptions": READ_LAST, "textMode": "auto"}
-    return Piece(4, panel("stat", title, [(expr, None)], defaults, options), w)
+    return Piece(5, panel("stat", title, [(expr, None)], defaults, options), w)
 
 
-def timeseries(title, series, unit="short", stack=False, lo=None, hi=None, w=None):
+def timeseries(title, series, unit="short", stack=False, lo=None, hi=None, w=None, h=8):
     line = {"fillOpacity": 15, "lineWidth": 1, "showPoints": "never", "spanNulls": True}
     custom = {**line, **({"stacking": {"mode": "normal", "group": "A"}} if stack else {})}
     options = {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}}
-    return Piece(8, panel("timeseries", title, series, {"unit": unit, "custom": custom, **bounds(lo, hi)}, options), w)
+    return Piece(h, panel("timeseries", title, series, {"unit": unit, "custom": custom, **bounds(lo, hi)}, options), w)
 
 
 def bargauge(title, series, unit="s", thr=None, w=None):
@@ -78,16 +78,33 @@ def share_width(requested):
     return [w if w else left // unset for w in requested]
 
 
-def place(rows):
-    """[(title or None, [Piece])] -> flat list of panels with ids and grid positions."""
-    ids, y, out = count(1), 0, []
-    for title, pieces in rows:
-        if title:
-            header = {"id": next(ids), "type": "row", "title": title, "collapsed": False, "panels": []}
-            out.append({**header, "gridPos": {"x": 0, "y": y, "w": WIDTH, "h": 1}})
-            y += 1
-        widths = share_width([p.w for p in pieces])
-        xs = [0, *accumulate(widths)]
-        out += [{**p.body, "id": next(ids), "datasource": DS, "gridPos": {"x": x, "y": y, "w": w, "h": p.h}} for p, x, w in zip(pieces, xs, widths)]
-        y += max(p.h for p in pieces)
+def place(sections):
+    """[(title or None, collapsed, [[Piece]])] -> flat list of panels with ids and grid positions.
+
+    A section is a list of lines of pieces. Collapsed sections nest their panels inside the row header.
+    """
+    ids = count(1)
+
+    def lay(lines, y):
+        panels = []
+        for pieces in lines:
+            widths = share_width([p.w for p in pieces])
+            xs = [0, *accumulate(widths)]
+            panels += [
+                {**p.body, "id": next(ids), "datasource": DS, "gridPos": {"x": x, "y": y, "w": w, "h": p.h}} for p, x, w in zip(pieces, xs, widths)
+            ]
+            y += max(p.h for p in pieces)
+        return panels, y
+
+    out, y = [], 0
+    for title, collapsed, lines in sections:
+        if not title:
+            panels, y = lay(lines, y)
+            out += panels
+            continue
+        header = {"id": next(ids), "type": "row", "title": title, "collapsed": collapsed}
+        panels, end = lay(lines, y + 1)
+        out.append({**header, "gridPos": {"x": 0, "y": y, "w": WIDTH, "h": 1}, "panels": panels if collapsed else []})
+        out += [] if collapsed else panels
+        y = y + 1 if collapsed else end
     return out
