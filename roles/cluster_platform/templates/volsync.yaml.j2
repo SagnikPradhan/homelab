@@ -1,0 +1,11 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: volsync
+  namespace: kube-system
+spec:
+  repo: https://backube.github.io/helm-charts/
+  chart: volsync
+  version: "{{ cluster_platform_volsync_version }}"
+  targetNamespace: volsync-system
+  createNamespace: true

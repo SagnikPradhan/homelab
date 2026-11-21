@@ -1,0 +1,63 @@
+# Installs ZFS and caps ARC. The pool itself is created by legacy/migrate.yml (destructive, gated).
+- name: Enable Debian contrib (zfs-dkms lives there)
+  become: true
+  become_user: root
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list
+    regexp: '^(deb http://deb\.debian\.org/debian/ trixie main)( non-free non-free-firmware)$'
+    replace: '\1 contrib\2'
+  register: host_zfs_contrib
+
+- name: Install ZFS and kernel headers (contrib)
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    name: "{{ host_zfs_packages }}"
+    update_cache: true
+    cache_valid_time: "{{ 0 if host_zfs_contrib.changed else 3600 }}"
+
+- name: Cap ZFS ARC
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/zfs.conf
+    content: "options zfs zfs_arc_max={{ host_zfs_arc_max_bytes }}\n"
+    mode: "0644"
+    owner: root
+    group: root
+
+- name: Load zfs module
+  become: true
+  become_user: root
+  community.general.modprobe:
+    name: zfs
+    state: present
+
+- name: Apply ARC cap now
+  become: true
+  become_user: root
+  ansible.builtin.shell: "echo {{ host_zfs_arc_max_bytes }} > /sys/module/zfs/parameters/zfs_arc_max"
+  changed_when: false
+
+- name: Import pool if it exists
+  become: true
+  become_user: root
+  ansible.builtin.command: "zpool import -N {{ host_zfs_pool }}"
+  register: host_zfs_import
+  failed_when: false
+  changed_when: host_zfs_import.rc == 0
+
+- name: Check pool state
+  become: true
+  become_user: root
+  ansible.builtin.command: "zpool list -H -o name,health {{ host_zfs_pool }}"
+  register: host_zfs_pool_state
+  failed_when: false
+  changed_when: false
+
+- name: Report pool state
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'pool ' + host_zfs_pool + ': ' + host_zfs_pool_state.stdout
+      if host_zfs_pool_state.rc == 0
+      else 'pool ' + host_zfs_pool + ' not created yet (run legacy/migrate.yml)' }}

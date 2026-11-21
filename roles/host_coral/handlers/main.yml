@@ -1,0 +1,5 @@
+- name: Reload udev
+  become: true
+  become_user: root
+  ansible.builtin.shell: udevadm control --reload-rules && udevadm trigger --subsystem-match=apex
+  changed_when: true

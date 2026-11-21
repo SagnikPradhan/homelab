@@ -1,0 +1,16 @@
+# Managed by Ansible (roles/k3s)
+node-name: {{ cluster_k3s_node_name }}
+node-ip: {{ cluster_k3s_node_ip }}
+advertise-address: {{ cluster_k3s_node_ip }}
+tls-san:
+  - {{ cluster_k3s_node_ip }}
+  - {{ cluster_k3s_node_name }}
+cluster-cidr: {{ site_pods_cidr }}
+service-cidr: {{ site_services_cidr }}
+cluster-dns: {{ site_cluster_dns }}
+write-kubeconfig-mode: "0640"
+disable:
+  - traefik          # ingress is cloudflared
+  - local-storage    # storage is ZFS-LocalPV
+  - metrics-server   # observability comes later
+secrets-encryption: true

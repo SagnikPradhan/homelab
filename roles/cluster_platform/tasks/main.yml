@@ -1,0 +1,97 @@
+- name: Refuse to run without the ZFS pool (volumes would silently land elsewhere)
+  become: true
+  become_user: root
+  ansible.builtin.command: "zfs list -H -o name {{ host_zfs_parent_dataset }}"
+  changed_when: false
+
+- name: Render platform manifests into the k3s auto-deploy directory
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/var/lib/rancher/k3s/server/manifests/{{ item }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop:
+    - zfs-localpv.yaml
+    - volsync.yaml
+    - generic-device-plugin.yaml
+
+- name: Wait for ZFS CSI + VolSync CRDs
+  become: true
+  become_user: root
+  ansible.builtin.command: "k3s kubectl wait --for=condition=Established --timeout=300s crd/{{ item }}"
+  loop:
+    - volumesnapshotclasses.snapshot.storage.k8s.io
+    - zfsvolumes.zfs.openebs.io
+    - replicationsources.volsync.backube
+  retries: 10
+  delay: 15
+  register: cluster_platform_crd
+  until: cluster_platform_crd.rc == 0
+  changed_when: false
+
+- name: Scan Storage Box host key (trust on first use, stored in the gateway Secret)
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: "ssh-keyscan -p {{ backup_storagebox_port }} {{ backup_storagebox_host }}"
+  register: cluster_platform_known_hosts
+  changed_when: false
+  no_log: true
+
+- name: Verify the scanned Storage Box key against the pinned fingerprint
+  delegate_to: localhost
+  become: false
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo "$KH" | grep ' ssh-ed25519 ' | ssh-keygen -lf - | cut -d' ' -f2
+  args:
+    executable: /bin/bash
+  environment:
+    KH: "{{ cluster_platform_known_hosts.stdout }}"
+  register: cluster_platform_hostkey
+  changed_when: false
+  failed_when: cluster_platform_hostkey.stdout != backup_storagebox_hostkey_ed25519
+  no_log: true
+
+- name: Create the backup namespace
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl create namespace backup --dry-run=client -o yaml | k3s kubectl apply -f -
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Create restic gateway secret
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n backup create secret generic restic-gateway \
+      --from-literal=host="$GW_HOST" --from-literal=user="$GW_USER_BOX" \
+      --from-literal=gw_user=restic --from-literal=gw_password="$GW_PASS" \
+      --from-literal=ssh_key="$GW_KEY" --from-literal=known_hosts="$GW_KH" \
+      --dry-run=client -o yaml | k3s kubectl apply -f -
+  args:
+    executable: /bin/bash
+  environment:
+    GW_HOST: "{{ backup_storagebox_host }}"
+    GW_USER_BOX: "{{ backup_storagebox_user }}"
+    GW_PASS: "{{ backup_gateway_password }}"
+    GW_KEY: "{{ backup_ssh_key }}\n"
+    GW_KH: "{{ cluster_platform_known_hosts.stdout }}"
+  no_log: true
+  changed_when: true
+
+- name: Deploy restic gateway
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: restic-gateway.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/restic-gateway.yaml
+    mode: "0600"
+    owner: root
+    group: root

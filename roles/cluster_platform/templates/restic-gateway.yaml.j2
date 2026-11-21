@@ -1,0 +1,65 @@
+# rclone "serve restic" in front of the Hetzner Storage Box (SFTP, port {{ backup_storagebox_port }}).
+# VolSync's restic mover talks REST to this; rclone speaks SFTP to the box.
+# Same pattern as Hetzner's own k8s tutorial.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backup
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: restic-gateway
+  namespace: backup
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: restic-gateway }
+  template:
+    metadata:
+      labels: { app: restic-gateway }
+    spec:
+      containers:
+        - name: rclone
+          image: {{ cluster_platform_rclone_image }}
+          args:
+            - serve
+            - restic
+            - ":sftp:restic"
+            - --addr=:8080
+            - --transfers=8
+          env:
+            - { name: RCLONE_SFTP_HOST,  valueFrom: { secretKeyRef: { name: restic-gateway, key: host } } }
+            - { name: RCLONE_SFTP_USER,  valueFrom: { secretKeyRef: { name: restic-gateway, key: user } } }
+            - { name: RCLONE_SFTP_PORT,  value: "{{ backup_storagebox_port }}" }
+            - { name: RCLONE_SFTP_KEY_FILE, value: /ssh/id }
+            - { name: RCLONE_SFTP_KNOWN_HOSTS_FILE, value: /ssh/known_hosts }
+            - { name: RCLONE_SFTP_SET_MODTIME, value: "false" }
+            - { name: RCLONE_USER, valueFrom: { secretKeyRef: { name: restic-gateway, key: gw_user } } }
+            - { name: RCLONE_PASS, valueFrom: { secretKeyRef: { name: restic-gateway, key: gw_password } } }
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - { name: ssh, mountPath: /ssh, readOnly: true }
+      volumes:
+        - name: ssh
+          secret:
+            secretName: restic-gateway
+            defaultMode: 256
+            items:
+              - { key: ssh_key, path: id }
+              - { key: known_hosts, path: known_hosts }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: restic-gateway
+  namespace: backup
+spec:
+  selector: { app: restic-gateway }
+  ports:
+    - { port: 8080, targetPort: 8080 }

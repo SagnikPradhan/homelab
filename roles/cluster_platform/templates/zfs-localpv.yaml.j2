@@ -1,0 +1,59 @@
+# Managed by Ansible. Picked up by k3s' helm-controller from the server manifests dir.
+# The chart bundles the CSI snapshot controller + VolumeSnapshot CRDs.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: zfs-localpv
+  namespace: kube-system
+spec:
+  repo: https://openebs.github.io/zfs-localpv
+  chart: zfs-localpv
+  version: "{{ cluster_platform_zfs_localpv_version }}"
+  targetNamespace: openebs
+  createNamespace: true
+  valuesContent: |-
+    zfsNode:
+      kubeletDir: /var/lib/kubelet/
+    analytics:
+      enabled: false
+    global:
+      analytics:
+        enabled: false
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: zfs
+provisioner: zfs.csi.openebs.io
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  poolname: "{{ host_zfs_parent_dataset }}"
+  fstype: zfs
+  compression: "lz4"
+  dedup: "off"
+  recordsize: "128k"
+---
+# 1 MiB records suit large sequential video segments
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: zfs-media
+provisioner: zfs.csi.openebs.io
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  poolname: "{{ host_zfs_parent_dataset }}"
+  fstype: zfs
+  compression: "lz4"
+  dedup: "off"
+  recordsize: "1M"
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: zfs
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: zfs.csi.openebs.io
+deletionPolicy: Delete

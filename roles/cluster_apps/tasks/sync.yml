@@ -1,0 +1,11 @@
+# Applies k8s/apps/* on the node with `k3s kubectl`, so nothing depends on API reachability from the
+# controller.
+- name: Sync manifests to the node
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/k8s/apps/"
+    dest: "{{ cluster_apps_remote_dir }}/apps/"
+    mode: preserve
+    owner: root
+    group: root

@@ -1,0 +1,18 @@
+site_name: home
+# nodes 10.0.60.0/24, services .61, infra .62, pods 10.0.64.0/20
+site_block: 60
+
+cluster_k3s_node_ip: "10.0.60.200"
+cluster_k3s_node_name: hserver-00
+
+host_zfs_pool: tank
+# 2 GiB cap on the read cache
+host_zfs_arc_max_bytes: 2147483648
+host_zfs_mountpoint: /tank
+
+# StorageClass poolname; PVC sizes live in k8s/apps/*
+host_zfs_parent_dataset: tank/k8s
+
+# legacy docker layout, source of the migration
+legacy_data_dir: /media/homelab/data
+staging_dir: /home/staging

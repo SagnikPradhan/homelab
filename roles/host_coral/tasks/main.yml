@@ -1,0 +1,66 @@
+# Why the Coral used to vanish: DKMS built gasket only for kernels that had headers installed. Kernels
+# 6.12.69-.100 have no apex.ko, so an upgrade+reboot onto one of them lost /dev/apex_0. The linux-headers-amd64
+# metapackage keeps headers tracking the newest kernel, and roles/host_base refuses to reboot unless every DKMS module is
+# built for it. (dkms itself lives in /usr/sbin - not on a normal user's PATH, run it as root.)
+- name: Install DKMS toolchain, kernel headers and gasket driver
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    name:
+      - dkms
+      - linux-headers-amd64
+      - gasket-dkms
+    update_cache: true
+    cache_valid_time: 3600
+  register: host_coral_apt
+
+- name: List installed kernels (target host)
+  ansible.builtin.shell: |
+    set -o pipefail
+    ls /lib/modules | sort -V | tail -2
+  args:
+    executable: /bin/bash
+  register: host_coral_kernels
+  changed_when: false
+
+- name: Build/install DKMS modules for the two newest installed kernels
+  become: true
+  become_user: root
+  ansible.builtin.command: "dkms autoinstall -k {{ item }}"
+  loop: "{{ host_coral_kernels.stdout_lines }}"
+  changed_when: host_coral_apt.changed
+
+- name: Load apex at boot
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/coral.conf
+    content: "gasket\napex\n"
+    mode: "0644"
+    owner: root
+    group: root
+
+- name: Stable permissions for the Coral device node
+  become: true
+  become_user: root
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/65-apex.rules
+    content: |
+      SUBSYSTEM=="apex", MODE="0666"
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Reload udev
+
+- name: Load apex now
+  become: true
+  become_user: root
+  community.general.modprobe:
+    name: apex
+    state: present
+
+- name: Assert Coral device present
+  ansible.builtin.stat:
+    path: /dev/apex_0
+  register: host_coral_dev
+  failed_when: not host_coral_dev.stat.exists

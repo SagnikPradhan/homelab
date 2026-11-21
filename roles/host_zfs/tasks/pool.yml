@@ -1,0 +1,17 @@
+# DESTRUCTIVE: wipes host_zfs_pool_disk. Only included from legacy/migrate.yml after its gates.
+- name: Create pool
+  become: true
+  become_user: root
+  ansible.builtin.command: >-
+    zpool create -f -o ashift=12 -O compression=lz4 -O atime=off -O xattr=sa -O acltype=posixacl
+    -O mountpoint={{ host_zfs_mountpoint }} {{ host_zfs_pool }} {{ host_zfs_pool_disk }}
+  args:
+    creates: "{{ host_zfs_mountpoint }}"
+
+- name: Create parent dataset for Kubernetes volumes
+  become: true
+  become_user: root
+  ansible.builtin.command: "zfs create -o mountpoint=none -o recordsize=128K {{ host_zfs_parent_dataset }}"
+  register: host_zfs_parent
+  failed_when: host_zfs_parent.rc != 0 and 'already exists' not in host_zfs_parent.stderr
+  changed_when: host_zfs_parent.rc == 0

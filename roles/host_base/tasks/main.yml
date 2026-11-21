@@ -1,0 +1,61 @@
+- name: Upgrade all APT packages
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  register: host_base_apt_upgrade
+
+- name: Print APT upgrade
+  ansible.builtin.debug:
+    msg: "{{ host_base_apt_upgrade.stdout_lines }}"
+  when: host_base_apt_upgrade.stdout_lines is defined
+
+- name: Find newest installed kernel
+  ansible.builtin.shell: |
+    set -o pipefail
+    ls /lib/modules | sort -V | tail -1
+  args:
+    executable: /bin/bash
+  register: host_base_newest_kernel
+  changed_when: false
+
+- name: Check DKMS modules are built for the newest kernel
+  become: true
+  become_user: root
+  ansible.builtin.command: dkms status
+  register: host_base_dkms_status
+  changed_when: false
+  failed_when: false
+
+- name: Refuse to reboot into a kernel without its DKMS modules (Coral/ZFS would vanish)
+  ansible.builtin.assert:
+    that:
+      - >-
+        host_base_dkms_status.rc != 0 or
+        (host_base_dkms_status.stdout_lines
+          | select('search', 'installed')
+          | select('search', host_base_newest_kernel.stdout)
+          | list | length) == (host_base_dkms_status.stdout_lines | length)
+    fail_msg: >-
+      dkms has modules not built for {{ host_base_newest_kernel.stdout }}:
+      {{ host_base_dkms_status.stdout_lines }}. Install linux-headers-amd64 and run `dkms autoinstall`.
+  when: host_base_dkms_status.rc == 0 and host_base_dkms_status.stdout_lines | length > 0
+
+- name: Check if reboot is required
+  become: true
+  become_user: root
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: host_base_reboot_required
+  when: ansible_os_family == "Debian"
+
+- name: Reboot the server if needed
+  become: true
+  become_user: root
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when: host_base_reboot_required.stat.exists

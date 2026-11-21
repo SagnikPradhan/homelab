@@ -1,0 +1,4 @@
+host_zfs_packages:
+  - zfs-dkms
+  - zfsutils-linux
+  - linux-headers-amd64

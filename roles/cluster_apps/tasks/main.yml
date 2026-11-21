@@ -1,0 +1,80 @@
+# Applies k8s/apps/* on the node with `k3s kubectl`, so nothing depends on API reachability from the
+# controller.
+- name: Sync manifests
+  ansible.builtin.include_tasks: sync.yml
+
+- name: Create namespaces
+  become: true
+  become_user: root
+  ansible.builtin.command: "k3s kubectl apply -f {{ cluster_apps_remote_dir }}/apps/{{ item }}/namespace.yaml"
+  loop: "{{ cluster_apps_list }}"
+  register: cluster_apps_ns
+  changed_when: "'created' in cluster_apps_ns.stdout or 'configured' in cluster_apps_ns.stdout"
+
+- name: Create app secrets
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -o pipefail
+    # ARGS is a repo-defined template that references $V1..$V4; eval expands them (a plain $ARGS
+    # would pass the literal text "$V1"). The values themselves are only ever expanded inside double
+    # quotes, so they are not re-parsed.
+    eval "k3s kubectl -n \"\$NS\" create secret generic \"\$NAME\" $ARGS --dry-run=client -o yaml" | k3s kubectl apply -f -
+  args:
+    executable: /bin/bash
+  environment:
+    NS: "{{ item.ns }}"
+    NAME: "{{ item.name }}"
+    ARGS: "{{ item.args }}"
+    V1: "{{ item.v1 | default('') }}"
+    V2: "{{ item.v2 | default('') }}"
+    V3: "{{ item.v3 | default('') }}"
+    V4: "{{ item.v4 | default('') }}"
+  loop:
+    - { ns: cloudflared, name: cloudflared, args: '--from-literal=token="$V1"', v1: "{{ cloudflared_tunnel_token }}" }
+    - ns: home-assistant
+      name: mosquitto-pwfile
+      args: '--from-literal=pwfile="$V1"'
+      v1: "{{ mqtt_password_file }}"
+    - { ns: monitoring, name: grafana, args: '--from-literal=admin_password="$V1"', v1: "{{ grafana_admin_password }}" }
+    - ns: frigate
+      name: frigate-env
+      args: >-
+        --from-literal=FRIGATE_DOOR_CAMERA_RTSP_STREAM1="$V1"
+        --from-literal=FRIGATE_DOOR_CAMERA_RTSP_STREAM2="$V2"
+        --from-literal=FRIGATE_MQTT_USERNAME="$V3" --from-literal=FRIGATE_MQTT_PASSWORD="$V4"
+      v1: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream1"
+      v2: "rtsp://admin:{{ security_door_camera_password }}@{{ security_door_camera_address }}:554/stream2"
+      v3: "{{ mqtt_username }}"
+      v4: "{{ mqtt_password }}"
+  loop_control: { label: "{{ item.ns }}/{{ item.name }}" }
+  no_log: true
+  changed_when: true
+
+- name: Create per-volume restic repository secrets
+  become: true
+  become_user: root
+  ansible.builtin.shell: |
+    set -o pipefail
+    k3s kubectl -n "$NS" create secret generic "restic-$PVC" \
+      --from-literal=RESTIC_REPOSITORY="rest:http://restic:$GWPASS@restic-gateway.backup.svc.cluster.local:8080/$NS-$PVC" \
+      --from-literal=RESTIC_PASSWORD="$RPASS" --dry-run=client -o yaml | k3s kubectl apply -f -
+  args:
+    executable: /bin/bash
+  environment:
+    NS: "{{ item.ns }}"
+    PVC: "{{ item.pvc }}"
+    GWPASS: "{{ backup_gateway_password | urlencode }}"
+    RPASS: "{{ backup_restic_password }}"
+  loop: "{{ cluster_apps_backups }}"
+  loop_control: { label: "{{ item.ns }}/{{ item.pvc }}" }
+  no_log: true
+  changed_when: true
+
+- name: Apply app manifests
+  become: true
+  become_user: root
+  ansible.builtin.command: "k3s kubectl apply -k {{ cluster_apps_remote_dir }}/apps/{{ item }}"
+  loop: "{{ cluster_apps_list }}"
+  register: cluster_apps_apply
+  changed_when: "'created' in cluster_apps_apply.stdout or 'configured' in cluster_apps_apply.stdout"

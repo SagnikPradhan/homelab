@@ -1,10 +1,17 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/inventory.json
-local:
-  hosts:
-    hserver_00:
-      ansible_host: hserver_00
-      ansible_python_interpreter: /usr/bin/python3
-
+# One group per site. A site is one k3s cluster; group_vars/<site>.yml holds its addressing.
 all:
   children:
-    local:
+    home:
+      hosts:
+        hserver_00:
+          ansible_host: hserver_00
+          ansible_python_interpreter: /usr/bin/python3
+    eu:
+      # Hetzner nodes, added in a later round
+      hosts: {}
+    k3s_server:
+      hosts:
+        hserver_00:
+    k3s_agent:
+      hosts: {}

@@ -1,0 +1,21 @@
+# Desired state of a site. Targets the `home` group by default; `-l eu` later.
+- name: Base OS
+  hosts: home
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  roles:
+    - host_base
+    - host_coral
+    - host_zfs
+
+- name: Kubernetes
+  hosts: k3s_server
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  roles:
+    - role: cluster_k3s
+      tags: [k3s]
+    - role: cluster_platform
+      tags: [platform]
+    - role: cluster_apps
+      tags: [apps]

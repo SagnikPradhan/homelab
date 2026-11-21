@@ -1,0 +1,24 @@
+# Every site owns a block of subnets inside 10.0.0.0/16.
+# site_block is the first /24 index of the site (home=60, eu=80). See group_vars/<site>.yml.
+# Layout per site: nodes .0, services .1, infra .2 (LB pool / WireGuard, reserved), pods .4/20
+site_services_cidr: "10.0.{{ site_block + 1 }}.0/24"
+site_pods_cidr: "10.0.{{ site_block + 4 }}.0/20"
+site_cluster_dns: "10.0.{{ site_block + 1 }}.10"
+
+cluster_k3s_version: "v1.37.2+k3s1"
+# bind-mounted over /var/lib/{rancher,kubelet}: /var is only 12 GB
+cluster_k3s_state_dir: /home/k3s
+cluster_k3s_kubeconfig_local: "{{ playbook_dir }}/.kube/{{ site_name }}.yaml"
+
+cluster_platform_zfs_localpv_version: "2.11.2"
+cluster_platform_volsync_version: "0.17.0"
+cluster_platform_generic_device_plugin_image: "squat/generic-device-plugin:latest"
+cluster_platform_rclone_image: "rclone/rclone:1.76.0"
+
+backup_storagebox_user: "{{ backup_ssh_user }}"
+backup_storagebox_host: "{{ backup_ssh_host }}"
+backup_storagebox_port: "{{ backup_ssh_port }}"
+# Pinned ED25519 host key of the Storage Box. First seen 2026-11-20 from two machines; Hetzner
+# publishes no fingerprints, so confirm once in the Hetzner console / an earlier trusted login. The
+# platform role fails if the box presents another key.
+backup_storagebox_hostkey_ed25519: "SHA256:XqONwb1S0zuj5A1CDxpOSuD2hnAArV1A3wKY7Z3sdgM"

@@ -1,0 +1,17 @@
+cluster_apps_remote_dir: /opt/homelab/k8s
+cluster_apps_list:
+  - cloudflared
+  - home-assistant
+  - frigate
+  - paisa
+  - monitoring
+
+# namespace / pvc pairs that get a restic repo (one repo per PVC on the Storage Box)
+cluster_apps_backups:
+  - { ns: frigate, pvc: frigate-config }
+  - { ns: frigate, pvc: frigate-media }
+  - { ns: home-assistant, pvc: home-assistant }
+  - { ns: home-assistant, pvc: mosquitto }
+  - { ns: paisa, pvc: paisa }
+  # dashboards/users; VictoriaMetrics data is deliberately not backed up
+  - { ns: monitoring, pvc: grafana }
