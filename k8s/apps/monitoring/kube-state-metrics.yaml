@@ -1,0 +1,82 @@
+# Turns VolSync ReplicationSource status (last sync time, result) into metrics. Only that: the
+# default kube-state-metrics families are disabled to keep it tiny; cAdvisor and node-exporter
+# already cover the rest.
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: kube-state-metrics, namespace: monitoring }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: kube-state-metrics }
+rules:
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch]
+  - apiGroups: [volsync.backube]
+    resources: [replicationsources]
+    verbs: [list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: kube-state-metrics }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: kube-state-metrics }
+subjects: [{ kind: ServiceAccount, name: kube-state-metrics, namespace: monitoring }]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: kube-state-metrics-config, namespace: monitoring }
+data:
+  custom-resource.yml: |
+    kind: CustomResourceStateMetrics
+    spec:
+      resources:
+        - groupVersionKind: { group: volsync.backube, version: v1alpha1, kind: ReplicationSource }
+          metricNamePrefix: volsync_backup
+          labelsFromPath:
+            name: [metadata, name]
+            namespace: [metadata, namespace]
+          metrics:
+            - name: last_sync_timestamp_seconds
+              help: Unix time of the last completed backup
+              each:
+                type: Gauge
+                gauge: { path: [status, lastSyncTime] }
+            - name: next_sync_timestamp_seconds
+              help: Unix time of the next scheduled backup
+              each:
+                type: Gauge
+                gauge: { path: [status, nextSyncTime] }
+            - name: last_result
+              help: Result of the last backup run (label "result")
+              each:
+                type: Info
+                info:
+                  path: [status, latestMoverStatus]
+                  labelsFromPath: { result: [result] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: kube-state-metrics, namespace: monitoring }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: kube-state-metrics } }
+  template:
+    metadata: { labels: { app: kube-state-metrics } }
+    spec:
+      serviceAccountName: kube-state-metrics
+      enableServiceLinks: false
+      containers:
+        - name: kube-state-metrics
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+          args:
+            - --port=8080
+            - --custom-resource-state-only=true
+            - --custom-resource-state-config-file=/config/custom-resource.yml
+          ports: [{ name: metrics, containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /readyz, port: 8081 } }
+          resources:
+            requests: { cpu: 5m, memory: 24Mi }
+            limits: { memory: 128Mi }
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false }
+          volumeMounts: [{ name: config, mountPath: /config, readOnly: true }]
+      volumes: [{ name: config, configMap: { name: kube-state-metrics-config } }]

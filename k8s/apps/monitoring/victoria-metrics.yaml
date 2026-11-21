@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: victoria-metrics-scrape, namespace: monitoring }
+data:
+  scrape.yml: |
+    global:
+      scrape_interval: 30s
+    scrape_configs:
+      - job_name: victoria-metrics
+        static_configs: [{ targets: ["localhost:8428"] }]
+      # host CPU/RAM/disk/network and ZFS (ARC, pool health)
+      - job_name: node-exporter
+        kubernetes_sd_configs: [{ role: pod, namespaces: { names: [monitoring] } }]
+        relabel_configs:
+          - { source_labels: [__meta_kubernetes_pod_label_app], regex: node-exporter, action: keep }
+          - { source_labels: [__meta_kubernetes_pod_node_name], target_label: instance }
+          - { source_labels: [__meta_kubernetes_pod_ip], regex: (.*), replacement: "$1:9100", target_label: __address__ }
+      # kubelet health
+      - job_name: kubelet
+        scheme: https
+        tls_config: { insecure_skip_verify: true }
+        authorization: { credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token }
+        kubernetes_sd_configs: [{ role: node }]
+        relabel_configs: [{ source_labels: [__meta_kubernetes_node_name], target_label: instance }]
+      # VolSync last-backup time/result via kube-state-metrics
+      - job_name: backups
+        kubernetes_sd_configs: [{ role: pod, namespaces: { names: [monitoring] } }]
+        relabel_configs:
+          - { source_labels: [__meta_kubernetes_pod_label_app], regex: kube-state-metrics, action: keep }
+          - { source_labels: [__meta_kubernetes_pod_ip], regex: (.*), replacement: "$1:8080", target_label: __address__ }
+      # per-container CPU/RAM (which pod is eating memory)
+      - job_name: cadvisor
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        tls_config: { insecure_skip_verify: true }
+        authorization: { credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token }
+        kubernetes_sd_configs: [{ role: node }]
+        relabel_configs: [{ source_labels: [__meta_kubernetes_node_name], target_label: instance }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: victoria-metrics, namespace: monitoring }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: victoria-metrics } }
+  template:
+    metadata: { labels: { app: victoria-metrics } }
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: victoria-metrics
+      containers:
+        - name: victoria-metrics
+          image: victoriametrics/victoria-metrics:latest
+          args:
+            - -storageDataPath=/storage
+            - -retentionPeriod=90d
+            - -promscrape.config=/etc/vm/scrape.yml
+            - -httpListenAddr=:8428
+          ports: [{ containerPort: 8428 }]
+          readinessProbe: { httpGet: { path: /health, port: 8428 } }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: data, mountPath: /storage }
+            - { name: scrape, mountPath: /etc/vm }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: victoria-metrics }
+        - name: scrape
+          configMap: { name: victoria-metrics-scrape }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: victoria-metrics, namespace: monitoring }
+spec:
+  selector: { app: victoria-metrics }
+  ports: [{ port: 8428, targetPort: 8428 }]
