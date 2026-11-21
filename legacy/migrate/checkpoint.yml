@@ -1,0 +1,28 @@
+# Reusable gate. Include with: checkpoint_title, checkpoint_report (list), checkpoint_next, checkpoint_word (default "continue")
+# Confirmation, in order of precedence:
+#   1. env MIGRATE_CONFIRM (comma separated words) - for non-interactive shells; the operator types the word in the command
+#   2. an interactive prompt (needs a real TTY; without one the gate FAILS CLOSED)
+# Destructive gates always require a word; non-destructive ones are skipped with -e checkpoints_off=true.
+- name: "REPORT: {{ checkpoint_title }}"
+  ansible.builtin.debug:
+    msg: "{{ ['', '=== ' + checkpoint_title + ' ==='] + (checkpoint_report | map('regex_replace', '^', ' - ') | list) + ['Next: ' + checkpoint_next] }}"
+  when: not (checkpoints_off | default(false) | bool) or (checkpoint_destructive | default(false) | bool)
+
+- name: Was this checkpoint pre-confirmed in MIGRATE_CONFIRM?
+  ansible.builtin.set_fact:
+    checkpoint_confirmed: "{{ (checkpoint_word | default('continue')) in (lookup('ansible.builtin.env', 'MIGRATE_CONFIRM') | default('', true)).split(',') }}"
+
+- name: "CHECKPOINT: {{ checkpoint_title }}"
+  ansible.builtin.pause:
+    prompt: "Type '{{ checkpoint_word | default('continue') }}' to proceed (anything else aborts)"
+  register: checkpoint_answer
+  when:
+    - not checkpoint_confirmed | bool
+    - not (checkpoints_off | default(false) | bool) or (checkpoint_destructive | default(false) | bool)
+
+- name: Abort at checkpoint
+  ansible.builtin.fail:
+    msg: "Stopped at checkpoint '{{ checkpoint_title }}'. Nothing past this point was changed."
+  when:
+    - checkpoint_answer is not skipped
+    - checkpoint_answer.user_input | default('') | trim != (checkpoint_word | default('continue'))

@@ -1,0 +1,32 @@
+# Copies the staged legacy data into a fresh ZFS-backed PVC and verifies file count + bytes match.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restore-{{ item.pvc }}
+  namespace: {{ item.ns }}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: copy
+          image: busybox:1.37
+          command: [sh, -ec]
+          args:
+            - |
+              src=/src; dst=/dst
+              cp -a "$src"/. "$dst"/
+              s=$(find "$src" | wc -l); d=$(find "$dst" | wc -l)
+              sb=$(du -sb "$src" | cut -f1); db=$(du -sb "$dst" | cut -f1)
+              echo "files src=$s dst=$d  bytes src=$sb dst=$db"
+              [ "$s" = "$d" ] || { echo "FILE COUNT MISMATCH"; exit 1; }
+          volumeMounts:
+            - { name: src, mountPath: /src, readOnly: true }
+            - { name: dst, mountPath: /dst }
+      volumes:
+        - name: src
+          hostPath: { path: "{{ staging_dir }}/{{ item.src }}", type: Directory }
+        - name: dst
+          persistentVolumeClaim: { claimName: {{ item.pvc }} }

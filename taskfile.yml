@@ -9,22 +9,69 @@ vars:
     sh: bw get notes b1fc68e1-9f91-4e79-bc2c-b303014cc1c4
 
 tasks:
-  server-setup:
+  fmt:
+    desc: Format YAML and JSON with prettier
+    cmds:
+      - prettier --write "**/*.{yml,yaml,json}"
+      - ruff format
+
+  lint:
+    desc: Check formatting and run ansible-lint
+    cmds:
+      - prettier --check "**/*.{yml,yaml,json}"
+      - ruff format --check
+      - ansible-lint
+
+  site:
+    desc: Converge the site (OS, ZFS, k3s, platform, apps)
     requires:
       vars: [ANSIBLE_VAULT_PASSWORD, ANSIBLE_BECOME_ROOT_PASSWORD]
-    cmd: bash -c "ansible-playbook -i inventory.yml main.yml
-      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}})"
+    cmd: bash -c "ansible-playbook -i inventory.yml site.yml
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}}) {{.CLI_ARGS}}"
     env:
       ANSIBLE_BECOME_PASSWORD: "{{.ANSIBLE_BECOME_ROOT_PASSWORD}}"
 
-  server-diff:
+  site-diff:
     requires:
       vars: [ANSIBLE_VAULT_PASSWORD, ANSIBLE_BECOME_ROOT_PASSWORD]
-    cmd: bash -c "ansible-playbook -i inventory.yml main.yml
-      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}})
-      --check --diff"
+    cmd: bash -c "ansible-playbook -i inventory.yml site.yml
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}}) --check --diff {{.CLI_ARGS}}"
     env:
       ANSIBLE_BECOME_PASSWORD: "{{.ANSIBLE_BECOME_ROOT_PASSWORD}}"
+
+  migrate:
+    desc: "Gated migration phase: task migrate -- p0|p1|p2|p3|p4|p5|p6"
+    interactive: true
+    requires:
+      vars: [ANSIBLE_VAULT_PASSWORD, ANSIBLE_BECOME_ROOT_PASSWORD]
+    cmd: bash -c "ansible-playbook -i inventory.yml legacy/migrate.yml
+      --vault-password-file <(echo {{.ANSIBLE_VAULT_PASSWORD}}) --tags {{.CLI_ARGS}}"
+    env:
+      ANSIBLE_BECOME_PASSWORD: "{{.ANSIBLE_BECOME_ROOT_PASSWORD}}"
+
+  backup-status:
+    desc: Last sync of every volume backup
+    cmd: >-
+      kubectl --kubeconfig .kube/home.yaml get replicationsource -A
+      -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,LAST:.status.lastSyncTime,DUR:.status.lastSyncDuration
+
+  restore-test:
+    desc: Restore drill - pull latest paisa backup into a scratch PVC and compare with live
+    env: { KUBECONFIG: .kube/home.yaml }
+    cmds:
+      - kubectl apply -f k8s/drills/restore-paisa.yaml
+      - >-
+        kubectl -n paisa wait --for=jsonpath='{.status.lastSyncTime}'
+        replicationdestination/paisa-restore-test --timeout=15m
+      - kubectl apply -f k8s/drills/compare-paisa.yaml
+      - kubectl -n paisa wait --for=condition=complete job/compare-paisa --timeout=5m
+      - kubectl -n paisa logs job/compare-paisa > .kube/restored.sha
+      - kubectl -n paisa exec deploy/paisa -- sh -c 'cd /root/Documents/paisa && find . -type f -exec sha256sum {} + | sort -k2' > .kube/live.sha
+      - >-
+        echo "restored: $(wc -l < .kube/restored.sha) files | live: $(wc -l < .kube/live.sha) files";
+        diff .kube/live.sha .kube/restored.sha && echo "IDENTICAL" ||
+        echo "^ differences above: live data may have changed since the last backup (lines starting '<' only in live, '>' only in restored)"
+      - kubectl -n paisa delete -f k8s/drills/compare-paisa.yaml -f k8s/drills/restore-paisa.yaml
 
   encrypt:
     interactive: true

@@ -1,0 +1,413 @@
+# HISTORICAL: this ran once (2026-11-20/21) to move this host from Docker + ext4 to k3s + ZFS. p0-p2 need Docker and the old disk,
+# so they cannot run again. Kept as the record of how the cutover was done; ordinary changes go through site.yml.
+# One-off docker -> k3s/ZFS migration. EVERY play is tagged `never` + a phase tag, so nothing runs unless you ask:
+#   task migrate -- p0   (p2 is two steps: p2a then p2b)
+# Destructive gates need the confirmation word typed. From a non-TTY shell pass it explicitly:
+#   MIGRATE_CONFIRM=stop-services task migrate -- p2a
+#   MIGRATE_CONFIRM=<disk serial from the p2b report> task migrate -- p2b
+# Each phase ends with a CHECKPOINT that verifies state and waits for you. Destructive ones need a typed word.
+# Rollback is possible until the p2 wipe: `docker start` the stopped containers (see p2 checkpoint).
+- name: "P0 - preflight + install tooling (no downtime)"
+  hosts: home
+  tags: [never, p0]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  tasks:
+    - name: Resolve data disk
+      ansible.builtin.command: "readlink -f {{ host_zfs_pool_disk }}"
+      register: m_disk
+      changed_when: false
+      failed_when: m_disk.rc != 0
+
+    - name: Disk must be the legacy ext4 data disk mounted at /media
+      ansible.builtin.command: "findmnt -no SOURCE /media"
+      register: m_media_src
+      changed_when: false
+      failed_when: m_media_src.stdout != m_disk.stdout
+
+    - name: Size of legacy data (as root, data has root-owned files)
+      become: true
+      become_user: root
+      ansible.builtin.shell: "set -o pipefail; du -sb {{ legacy_data_dir }} | cut -f1"
+      args:
+        executable: /bin/bash
+      register: m_data_bytes
+      changed_when: false
+
+    - name: Free space where staging will live
+      ansible.builtin.shell: |
+        set -o pipefail
+        df -B1 --output=avail $(dirname {{ staging_dir }}) | tail -1
+      args:
+        executable: /bin/bash
+      register: m_free_bytes
+      changed_when: false
+
+    - name: Staging must fit with 15 GB headroom (trim Frigate retention first if not)
+      ansible.builtin.assert:
+        that: (m_data_bytes.stdout | int) + 16106127360 < (m_free_bytes.stdout | int)
+        fail_msg: >-
+          legacy data {{ (m_data_bytes.stdout | int / 1073741824) | round(1) }} GiB does not fit in
+          {{ (m_free_bytes.stdout | int / 1073741824) | round(1) }} GiB free. Apply the new Frigate retention
+          (task legacy-apply) and wait for it to trim.
+
+    - name: Install Coral driver chain and ZFS tooling
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+        apply:
+          tags: [install]
+      loop: [host_coral, host_zfs]
+      tags: [install]
+
+    - name: Checkpoint p0
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p0 preflight done"
+        checkpoint_report:
+          - "data disk {{ host_zfs_pool_disk | basename }} -> {{ m_disk.stdout }} (ext4 on /media)"
+          - >-
+            legacy data {{ (m_data_bytes.stdout | int / 1073741824) | round(1) }} GiB,
+            staging space {{ (m_free_bytes.stdout | int / 1073741824) | round(1) }} GiB
+          - "coral + zfs installed; /dev/apex_0 present"
+        checkpoint_next: "p1 copies everything to {{ staging_dir }} while services keep running"
+
+- name: "P1 - stage a live copy on the NVMe (no downtime)"
+  hosts: home
+  tags: [never, p1]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  tasks:
+    - name: Rsync legacy data to staging
+      become: true
+      become_user: root
+      ansible.builtin.command: "rsync -aHAX --numeric-ids --info=stats2 {{ legacy_data_dir }}/ {{ staging_dir }}/" # noqa: command-instead-of-module
+      register: m_stage
+      changed_when: true
+
+    - name: Verify with a dry-run pass (expects nothing but live-changing Frigate/HA files)
+      become: true
+      become_user: root
+      ansible.builtin.command: # noqa: command-instead-of-module
+        cmd: "rsync -aHAXn --numeric-ids --out-format=%n {{ legacy_data_dir }}/ {{ staging_dir }}/"
+      register: m_stage_verify
+      changed_when: false
+
+    - name: Checkpoint p1
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p1 staging copy complete"
+        checkpoint_report:
+          - "{{ (m_stage.stdout_lines | select('search', 'Total file size|Number of files') | list) }}"
+          - "{{ m_stage_verify.stdout_lines | length }} paths still differ (live data changing - p2 does a final delta)"
+        checkpoint_next: >-
+          p2a stops all containers and takes the final delta (downtime starts, nothing deleted);
+          p2b then wipes {{ host_zfs_pool_disk | basename }} and creates ZFS
+
+- name: "P2a - stop services + final delta copy (DOWNTIME STARTS; nothing is deleted)"
+  hosts: home
+  tags: [never, p2a]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  tasks:
+    - name: Checkpoint before downtime
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_destructive: true
+        checkpoint_word: "stop-services"
+        checkpoint_title: "p2a about to stop all services"
+        checkpoint_report:
+          - "cameras stop recording, HA and MQTT go offline until p5 finishes (about 1 h)"
+          - "no data is deleted or wiped in this step"
+          - "rollback: docker start $(docker ps -aq)"
+        checkpoint_next: "stop containers, final delta rsync, verify staging identical"
+
+    - name: Running containers (for the record)
+      ansible.builtin.command: docker ps --format {% raw %}'{{.Names}}'{% endraw %}
+      register: m_containers
+      changed_when: false
+
+    - name: Stop containers
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: stopped
+      loop: "{{ m_containers.stdout_lines }}"
+
+    - name: Final delta rsync with --delete
+      become: true
+      become_user: root
+      ansible.builtin.command: "rsync -aHAX --numeric-ids --delete {{ legacy_data_dir }}/ {{ staging_dir }}/" # noqa: command-instead-of-module
+      changed_when: true
+
+    - name: Verify staging equals source (must be empty)
+      become: true
+      become_user: root
+      ansible.builtin.command: # noqa: command-instead-of-module
+        cmd: "rsync -aHAXn --numeric-ids --delete --out-format=%n {{ legacy_data_dir }}/ {{ staging_dir }}/"
+      register: m_final_verify
+      changed_when: false
+      failed_when: m_final_verify.stdout_lines | length > 0
+
+    - name: Checkpoint p2a
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p2a services stopped, staging verified byte-identical to source"
+        checkpoint_report:
+          - "stopped: {{ m_containers.stdout_lines | join(', ') }}"
+          - "the old disk is untouched - rollback is still `docker start $(docker ps -aq)`"
+        checkpoint_next: "p2b WIPES the disk (needs the serial typed as confirmation)"
+
+- name: "P2b - WIPE the data disk and create ZFS (DESTRUCTIVE, POINT OF NO RETURN)"
+  hosts: home
+  tags: [never, p2b]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+    m_serial: "{{ host_zfs_pool_disk | basename | regex_replace('^.*_', '') }}"
+  tasks:
+    - name: No container may still be running
+      ansible.builtin.command: docker ps -q
+      register: m_running
+      changed_when: false
+      failed_when: m_running.stdout | length > 0
+
+    - name: Staging must still be identical to the source (re-checked right before the wipe)
+      become: true
+      become_user: root
+      ansible.builtin.command: # noqa: command-instead-of-module
+        cmd: "rsync -aHAXn --numeric-ids --delete --out-format=%n {{ legacy_data_dir }}/ {{ staging_dir }}/"
+      register: m_pre_wipe
+      changed_when: false
+      failed_when: m_pre_wipe.stdout_lines | length > 0
+
+    - name: Staging must contain data and the NVMe copy must be real files, not the source disk
+      become: true
+      become_user: root
+      ansible.builtin.shell: |
+        set -o pipefail
+        [ "$(findmnt -no SOURCE --target {{ staging_dir }})" != "$(findmnt -no SOURCE /media)" ] && \
+        [ "$(find {{ staging_dir }} -type f | wc -l)" -gt 1000 ]
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Checkpoint before wipe (POINT OF NO RETURN)
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_destructive: true
+        checkpoint_word: "{{ m_serial }}"
+        checkpoint_title: "p2b about to WIPE {{ host_zfs_pool_disk | basename }}"
+        checkpoint_report:
+          - "all containers stopped; staging re-verified identical to the source just now"
+          - "wiping {{ host_zfs_pool_disk }}  (serial {{ m_serial }})"
+          - "only copy afterwards: {{ staging_dir }} (NVMe) + the workstation tarball. Keep both until p6 reports a successful offsite backup"
+        checkpoint_next: "unmount /media, drop its fstab line, create pool {{ host_zfs_pool }}"
+
+    # Not `state: absent`: that also rmdirs /media, which fails because /media/cdrom lives on the
+    # root fs.
+    - name: Drop the /media fstab entry
+      become: true
+      become_user: root
+      ansible.posix.mount:
+        path: /media
+        state: absent_from_fstab
+
+    - name: Unmount /media
+      become: true
+      become_user: root
+      ansible.posix.mount:
+        path: /media
+        state: unmounted
+
+    - name: Create ZFS pool and parent dataset
+      ansible.builtin.include_role:
+        name: host_zfs
+        tasks_from: pool.yml
+
+    - name: Pool health
+      become: true
+      become_user: root
+      ansible.builtin.command: "zpool status -x {{ host_zfs_pool }}"
+      register: m_pool
+      changed_when: false
+      failed_when: "'is healthy' not in m_pool.stdout"
+
+    - name: Checkpoint p2b
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p2b ZFS pool created"
+        checkpoint_report: ["{{ m_pool.stdout }}", "dataset {{ host_zfs_parent_dataset }} ready for ZFS-LocalPV"]
+        checkpoint_next: "p3 installs k3s, ZFS-LocalPV, VolSync, device plugin, restic gateway"
+
+- name: "P3 - k3s + platform operators"
+  hosts: k3s_server
+  tags: [never, p3]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  tasks:
+    - name: Install k3s and platform
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+      loop: [cluster_k3s, cluster_platform]
+
+    - name: Wait for operator pods
+      become: true
+      become_user: root
+      # Running pods only: finished helm-install Job pods (phase Succeeded) never report Ready.
+      ansible.builtin.command: >-
+        k3s kubectl wait --for=condition=Ready pod --all --field-selector=status.phase=Running
+        -n {{ item }} --timeout=300s
+      loop:
+        - openebs
+        - volsync-system
+        - backup
+        - kube-system
+      changed_when: false
+
+    - name: Collect state
+      become: true
+      become_user: root
+      ansible.builtin.command: k3s kubectl get pods -A --no-headers
+      register: m_pods
+      changed_when: false
+
+    - name: Checkpoint p3
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p3 cluster + operators healthy"
+        checkpoint_report: "{{ m_pods.stdout_lines }}"
+        checkpoint_next: "p4 creates the PVCs and copies staged data into them (no apps started yet)"
+
+- name: "P4 - restore staged data into PVCs"
+  hosts: k3s_server
+  tags: [never, p4]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+    m_restores:
+      - { ns: frigate, pvc: frigate-config, src: frigate/config }
+      - { ns: frigate, pvc: frigate-media, src: frigate/data }
+      - { ns: home-assistant, pvc: home-assistant, src: home_assistant }
+      - { ns: home-assistant, pvc: mosquitto, src: mosquitto/data }
+      - { ns: paisa, pvc: paisa, src: paisa }
+  tasks:
+    - name: Sync manifests to the node
+      ansible.builtin.include_role:
+        name: cluster_apps
+        tasks_from: sync.yml
+        # expose the role's defaults (cluster_apps_remote_dir) to the tasks below
+        public: true
+
+    - name: Create namespaces + PVCs
+      become: true
+      become_user: root
+      ansible.builtin.shell: |
+        set -e
+        k3s kubectl apply -f {{ cluster_apps_remote_dir }}/apps/{{ item.ns }}/namespace.yaml
+        k3s kubectl apply -f {{ cluster_apps_remote_dir }}/apps/{{ item.ns }}/pvc.yaml
+      args:
+        executable: /bin/bash
+      loop: "{{ m_restores | unique(attribute='ns') }}"
+      loop_control: { label: "{{ item.ns }}" }
+      changed_when: true
+
+    - name: Render restore Jobs
+      become: true
+      become_user: root
+      ansible.builtin.template:
+        src: migrate/restore-job.yaml.j2
+        dest: "/tmp/restore-{{ item.pvc }}.yaml"
+        mode: "0600"
+      loop: "{{ m_restores }}"
+      loop_control: { label: "{{ item.pvc }}" }
+
+    - name: Run restore Jobs and wait (each verifies file count)
+      become: true
+      become_user: root
+      ansible.builtin.shell: |
+        set -eo pipefail
+        k3s kubectl delete job -n {{ item.ns }} restore-{{ item.pvc }} --ignore-not-found
+        k3s kubectl apply -f /tmp/restore-{{ item.pvc }}.yaml
+        k3s kubectl wait -n {{ item.ns }} --for=condition=complete job/restore-{{ item.pvc }} --timeout=3h
+        k3s kubectl logs -n {{ item.ns }} job/restore-{{ item.pvc }} | tail -3
+      args:
+        executable: /bin/bash
+      loop: "{{ m_restores }}"
+      loop_control: { label: "{{ item.pvc }}" }
+      register: m_restore_out
+      changed_when: true
+
+    - name: Checkpoint p4
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p4 all volumes restored and count-verified"
+        checkpoint_report: "{{ m_restore_out.results | map(attribute='stdout_lines') | map('last') | list }}"
+        checkpoint_next: "p5 creates secrets, applies the app manifests and starts Frigate/HA/etc."
+
+- name: "P5 - start apps"
+  hosts: k3s_server
+  tags: [never, p5]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  roles:
+    - cluster_apps
+  post_tasks:
+    - name: Wait for all app deployments
+      become: true
+      become_user: root
+      ansible.builtin.command: "k3s kubectl wait --for=condition=Available deployment --all -n {{ item }} --timeout=600s"
+      loop:
+        - cloudflared
+        - frigate
+        - home-assistant
+        - paisa
+        - monitoring
+      changed_when: false
+
+    - name: Frigate stats
+      ansible.builtin.uri:
+        url: "http://{{ cluster_k3s_node_ip }}:1984/api/streams"
+        return_content: false
+      register: m_go2rtc
+      failed_when: false
+
+    - name: Checkpoint p5
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p5 apps are running - verify by hand now"
+        checkpoint_report:
+          - "Cloudflare Zero Trust -> Tunnels: change each public hostname origin to http://<svc>.<ns>.svc.cluster.local:<port>"
+          - "  home-assistant.home-assistant:8123 | paisa.paisa:7500 | frigate.frigate:8971"
+          - "Frigate UI http://{{ cluster_k3s_node_ip }}:8971 -> System: coral detector active, VAAPI on, old recordings play"
+          - "HA loads and Frigate shows MQTT connected; go2rtc reachable: {{ m_go2rtc.status | default('n/a') }}"
+        checkpoint_next: "p6 waits for the first offsite backup of every volume, then prints the cleanup commands"
+
+- name: "P6 - confirm offsite backups before cleanup"
+  hosts: k3s_server
+  tags: [never, p6]
+  vars:
+    ansible_become_password: '{{ lookup("env", "ANSIBLE_BECOME_PASSWORD") }}' # noqa var-naming[no-role-prefix]
+  tasks:
+    - name: Wait until every ReplicationSource has a successful sync
+      become: true
+      become_user: root
+      ansible.builtin.shell: |
+        set -o pipefail
+        k3s kubectl get replicationsource -A -o json | python3 -c '
+        import json,sys
+        items=json.load(sys.stdin)["items"]
+        bad=[i["metadata"]["namespace"]+"/"+i["metadata"]["name"] for i in items if not i.get("status",{}).get("lastSyncTime")]
+        print("\n".join(bad)); sys.exit(1 if bad or not items else 0)'
+      args:
+        executable: /bin/bash
+      register: m_sync
+      retries: 120
+      delay: 120
+      until: m_sync.rc == 0
+      changed_when: false
+
+    - name: Checkpoint p6
+      ansible.builtin.include_tasks: migrate/checkpoint.yml
+      vars:
+        checkpoint_title: "p6 first offsite backups done for every volume"
+        checkpoint_report:
+          - "run `task restore-test` for a restore drill before deleting anything"
+          - "then clean up manually: sudo rm -rf {{ staging_dir }}; docker compose down; apt purge docker-ce*; remove old roles"
+        checkpoint_next: "migration complete"
