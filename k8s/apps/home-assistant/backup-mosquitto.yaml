@@ -1,0 +1,21 @@
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: mosquitto
+  namespace: home-assistant
+spec:
+  sourcePVC: mosquitto
+  trigger:
+    schedule: "0 */6 * * *"
+  restic:
+    repository: restic-mosquitto
+    copyMethod: Snapshot
+    volumeSnapshotClassName: zfs
+    storageClassName: zfs
+    accessModes: [ReadWriteOnce]
+    pruneIntervalDays: 7
+    cacheCapacity: 2Gi
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 6

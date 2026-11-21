@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paisa
+  namespace: paisa
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: zfs
+  resources:
+    requests:
+      storage: 2Gi

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: home-assistant, namespace: home-assistant }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: home-assistant } }
+  template:
+    metadata: { labels: { app: home-assistant } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: home-assistant
+          image: ghcr.io/home-assistant/home-assistant:latest
+          imagePullPolicy: Always
+          env: [{ name: TZ, value: Asia/Kolkata }]
+          ports: [{ containerPort: 8123 }]
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { memory: 2Gi }
+          volumeMounts: [{ name: config, mountPath: /config }]
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: home-assistant }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: mosquitto, namespace: home-assistant }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: mosquitto } }
+  template:
+    metadata: { labels: { app: mosquitto } }
+    spec:
+      enableServiceLinks: false
+      securityContext: { fsGroup: 1883 }
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2
+          ports: [{ containerPort: 1883 }]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - { name: data, mountPath: /mosquitto/data }
+            - { name: conf, mountPath: /mosquitto/config/mosquitto.conf, subPath: mosquitto.conf, readOnly: true }
+            - { name: pwfile, mountPath: /etc/mosquitto/pwfile, subPath: pwfile, readOnly: true }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: mosquitto }
+        - name: conf
+          configMap: { name: mosquitto-conf }
+        - name: pwfile
+          secret: { secretName: mosquitto-pwfile, defaultMode: 288 }

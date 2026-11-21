@@ -1,0 +1,21 @@
+# Prints a checksum manifest of the RESTORED copy only. ZFS-LocalPV cannot mount a volume a second
+# time while the live pod holds it, so `task restore-test` takes the live manifest with `kubectl
+# exec` and diffs the two.
+apiVersion: batch/v1
+kind: Job
+metadata: { name: compare-paisa, namespace: paisa }
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: manifest
+          image: busybox:1.37
+          command: [sh, -c]
+          args: ["cd /restored && find . -type f -exec sha256sum {} + | sort -k2"]
+          volumeMounts:
+            - { name: restored, mountPath: /restored, readOnly: true }
+      volumes:
+        - { name: restored, persistentVolumeClaim: { claimName: paisa-restore-test } }

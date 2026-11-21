@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: frigate }
+  template:
+    metadata:
+      labels: { app: frigate }
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        # Frigate's config + TFLite model live on the config PVC; config.yml is owned by git
+        # (ConfigMap).
+        - name: seed-config
+          image: curlimages/curl:8.11.1
+          securityContext: { runAsUser: 0 }
+          command: [sh, -ec]
+          args:
+            - |
+              cp /seed/config.yml /config/config.yml
+              M=yolov9-s-hardswish-tpumax_320_int8_edgetpu.tflite
+              R=https://github.com/dbro/frigate-detector-edgetpu-yolo9
+              [ -s /config/$M ] || curl -fsSL -o /config/$M $R/releases/download/v1.5/$M
+              [ -s /config/labels-coco17.txt ] || curl -fsSL -o /config/labels-coco17.txt \
+                https://raw.githubusercontent.com/dbro/frigate-detector-edgetpu-yolo9/refs/heads/main/labels-coco17.txt
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: seed, mountPath: /seed }
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:0.18.2-rocm
+          env:
+            - { name: FRIGATE_MQTT_HOST, value: mosquitto.home-assistant.svc.cluster.local }
+            - { name: LIBVA_DRIVER_NAME, value: radeonsi }
+            - { name: HSA_OVERRIDE_GFX_VERSION, value: "9.0.0" }
+            - { name: TZ, value: Asia/Kolkata }
+          envFrom:
+            - secretRef: { name: frigate-env }
+          ports:
+            - { name: ui, containerPort: 8971 }
+            - { name: rtsp, containerPort: 8554 }
+            - { name: webrtc-tcp, containerPort: 8555, protocol: TCP }
+            - { name: webrtc-udp, containerPort: 8555, protocol: UDP }
+            - { name: go2rtc, containerPort: 1984 }
+          resources:
+            requests: { cpu: "1", memory: 2Gi }
+            limits:
+              memory: 6Gi
+              homelab.local/coral: 1
+              homelab.local/gpu: 1
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media/frigate }
+            - { name: cache, mountPath: /tmp/cache }
+            - { name: shm, mountPath: /dev/shm }
+          readinessProbe:
+            httpGet: { path: /api/version, port: 5000 }
+            periodSeconds: 10
+            failureThreshold: 12
+      volumes:
+        - name: config
+          persistentVolumeClaim: { claimName: frigate-config }
+        - name: media
+          persistentVolumeClaim: { claimName: frigate-media }
+        - name: seed
+          configMap: { name: frigate-config-seed }
+        - name: cache
+          emptyDir: { medium: Memory, sizeLimit: 2000Mi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 256Mi }

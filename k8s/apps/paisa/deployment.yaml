@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: paisa, namespace: paisa }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: paisa } }
+  template:
+    metadata: { labels: { app: paisa } }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: paisa
+          image: ananthakumaran/paisa:latest
+          imagePullPolicy: Always
+          ports: [{ containerPort: 7500 }]
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { memory: 512Mi }
+          volumeMounts: [{ name: data, mountPath: /root/Documents/paisa }]
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: paisa }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: paisa, namespace: paisa }
+spec:
+  selector: { app: paisa }
+  ports: [{ port: 7500, targetPort: 7500 }]

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata: { name: home-assistant, namespace: home-assistant }
+spec:
+  type: LoadBalancer
+  selector: { app: home-assistant }
+  ports: [{ name: http, port: 8123, targetPort: 8123 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: mosquitto, namespace: home-assistant }
+spec:
+  type: LoadBalancer
+  selector: { app: mosquitto }
+  ports: [{ name: mqtt, port: 1883, targetPort: 1883 }]

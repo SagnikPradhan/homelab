@@ -1,0 +1,22 @@
+# Restore drill: pulls the latest paisa backup from the Storage Box into a scratch PVC. Run via
+# `task restore-test`; it applies this, waits for the sync, then runs drills/compare-paisa.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: paisa-restore-test, namespace: paisa }
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: zfs
+  resources: { requests: { storage: 2Gi } }
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata: { name: paisa-restore-test, namespace: paisa }
+spec:
+  trigger: { manual: drill }
+  restic:
+    repository: restic-paisa
+    copyMethod: Direct
+    destinationPVC: paisa-restore-test
+    accessModes: [ReadWriteOnce]
+    capacity: 2Gi
+    storageClassName: zfs

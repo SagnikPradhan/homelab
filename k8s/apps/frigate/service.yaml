@@ -1,0 +1,15 @@
+# LoadBalancer => k3s ServiceLB binds these ports on the node IP, same as the old docker `ports:`.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  type: LoadBalancer
+  selector: { app: frigate }
+  ports:
+    - { name: ui, port: 8971, targetPort: 8971 }
+    - { name: rtsp, port: 8554, targetPort: 8554 }
+    - { name: webrtc-tcp, port: 8555, targetPort: 8555, protocol: TCP }
+    - { name: webrtc-udp, port: 8555, targetPort: 8555, protocol: UDP }
+    - { name: go2rtc, port: 1984, targetPort: 1984 }

@@ -1,0 +1,21 @@
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: frigate-config
+  namespace: frigate
+spec:
+  sourcePVC: frigate-config
+  trigger:
+    schedule: "0 */6 * * *"
+  restic:
+    repository: restic-frigate-config
+    copyMethod: Snapshot
+    volumeSnapshotClassName: zfs
+    storageClassName: zfs
+    accessModes: [ReadWriteOnce]
+    pruneIntervalDays: 7
+    cacheCapacity: 2Gi
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 6
