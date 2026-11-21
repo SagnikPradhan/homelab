@@ -1,110 +1,52 @@
-"""Building blocks for Grafana panels. Everything here is a pure function returning plain data."""
+"""Grafana building blocks: thresholds, stat and time series panels, and the grid layout."""
 
-from itertools import accumulate, count
-from typing import NamedTuple
+from itertools import count
 
 DS = {"type": "prometheus", "uid": "${DS}"}
-WIDTH = 24  # Grafana grid columns
+LAST = {"calcs": ["lastNotNull"], "fields": "", "values": False}
+COLUMNS = 24
 
 
-def color(name):
-    return lambda value: {"color": name, "value": value}
-
-
-green, yellow, red = map(color, ("green", "yellow", "red"))
-
-
-def steps(*xs):
-    return {"mode": "absolute", "steps": list(xs) or [green(None)]}
+def steps(*pairs):
+    return {"mode": "absolute", "steps": [{"color": c, "value": v} for c, v in pairs]}
 
 
 def ok_until(warn, bad):
-    return steps(green(None), yellow(warn), red(bad))
+    return steps(("green", None), ("yellow", warn), ("red", bad))
 
 
-def targets(*series, **extra):
-    """(expr, legend) pairs -> Grafana targets with refIds A, B, C, ..."""
-    refs = "ABCDEFGH"
-    return [{"datasource": DS, "refId": r, "expr": e, **({"legendFormat": l} if l else {}), **extra} for r, (e, l) in zip(refs, series)]
+def panel(kind, title, series, defaults, options):
+    refs = [{"datasource": DS, "refId": r, "expr": e, **({"legendFormat": s} if s else {})} for r, (e, s) in zip("ABCDEFGH", series)]
+    return {
+        "type": kind,
+        "title": title,
+        "datasource": DS,
+        "targets": refs,
+        "fieldConfig": {"defaults": defaults, "overrides": []},
+        "options": options,
+    }
 
 
-def bounds(lo, hi):
-    return {k: v for k, v in (("min", lo), ("max", hi)) if v is not None}
+def stat(title, expr, unit="percent", thr=None, dec=0, lo=None, hi=None, mappings=()):
+    limits = {k: v for k, v in (("min", lo), ("max", hi)) if v is not None}
+    defaults = {"unit": unit, "decimals": dec, "thresholds": thr or steps(("green", None)), "mappings": list(mappings), **limits}
+    options = {"colorMode": "value", "graphMode": "area", "reduceOptions": LAST, "textMode": "auto"}
+    return panel("stat", title, [(expr, None)], defaults, options)
 
 
-class Piece(NamedTuple):
-    h: int
-    body: dict
-    w: int | None = None
-
-
-READ_LAST = {"calcs": ["lastNotNull"], "fields": "", "values": False}
-
-
-def panel(kind, title, series, defaults, options, **extra):
-    field_config = {"defaults": defaults, "overrides": []}
-    return {"type": kind, "title": title, "targets": targets(*series), "fieldConfig": field_config, "options": options, **extra}
-
-
-def stat(title, expr, unit="percent", thr=None, dec=None, lo=None, hi=None, mappings=(), w=None):
-    decimals = {"decimals": dec} if dec is not None else {}
-    defaults = {"unit": unit, "thresholds": thr or steps(), "mappings": list(mappings), **bounds(lo, hi), **decimals}
-    options = {"colorMode": "value", "graphMode": "area", "reduceOptions": READ_LAST, "textMode": "auto"}
-    return Piece(5, panel("stat", title, [(expr, None)], defaults, options), w)
-
-
-def timeseries(title, series, unit="short", stack=False, lo=None, hi=None, w=None, h=8):
-    line = {"fillOpacity": 15, "lineWidth": 1, "showPoints": "never", "spanNulls": True}
-    custom = {**line, **({"stacking": {"mode": "normal", "group": "A"}} if stack else {})}
+def chart(title, series, unit="short", stack=False, hi=None):
+    custom = {"fillOpacity": 15, "lineWidth": 1, "showPoints": "never", "spanNulls": True}
+    custom |= {"stacking": {"mode": "normal", "group": "A"}} if stack else {}
+    defaults = {"unit": unit, "custom": custom, "min": 0, **({"max": hi} if hi else {})}
     options = {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}}
-    return Piece(h, panel("timeseries", title, series, {"unit": unit, "custom": custom, **bounds(lo, hi)}, options), w)
+    return panel("timeseries", title, series, defaults, options)
 
 
-def bargauge(title, series, unit="s", thr=None, w=None):
-    options = {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": READ_LAST, "showUnfilled": True}
-    return Piece(6, panel("bargauge", title, series, {"unit": unit, "min": 0, "thresholds": thr or steps()}, options), w)
-
-
-def table(title, expr, hide=(), w=None):
-    organize = {"id": "organize", "options": {"excludeByName": dict.fromkeys(hide, True)}}
-    body = panel("table", title, [(expr, None)], {}, {"showHeader": True}, transformations=[organize])
-    return Piece(6, {**body, "targets": targets((expr, None), instant=True, format="table")}, w)
-
-
-def share_width(requested):
-    """Pieces without a width split what the others leave over."""
-    left = WIDTH - sum(w or 0 for w in requested)
-    unset = requested.count(None)
-    return [w if w else left // unset for w in requested]
-
-
-def place(sections):
-    """[(title or None, collapsed, [[Piece]])] -> flat list of panels with ids and grid positions.
-
-    A section is a list of lines of pieces. Collapsed sections nest their panels inside the row header.
-    """
-    ids = count(1)
-
-    def lay(lines, y):
-        panels = []
-        for pieces in lines:
-            widths = share_width([p.w for p in pieces])
-            xs = [0, *accumulate(widths)]
-            panels += [
-                {**p.body, "id": next(ids), "datasource": DS, "gridPos": {"x": x, "y": y, "w": w, "h": p.h}} for p, x, w in zip(pieces, xs, widths)
-            ]
-            y += max(p.h for p in pieces)
-        return panels, y
-
-    out, y = [], 0
-    for title, collapsed, lines in sections:
-        if not title:
-            panels, y = lay(lines, y)
-            out += panels
-            continue
-        header = {"id": next(ids), "type": "row", "title": title, "collapsed": collapsed}
-        panels, end = lay(lines, y + 1)
-        out.append({**header, "gridPos": {"x": 0, "y": y, "w": WIDTH, "h": 1}, "panels": panels if collapsed else []})
-        out += [] if collapsed else panels
-        y = y + 1 if collapsed else end
+def layout(lines):
+    """[(height, [panel])] -> panels with ids and grid positions, each line splitting the columns evenly."""
+    ids, y, out = count(1), 0, []
+    for height, panels in lines:
+        width = COLUMNS // len(panels)
+        out += [{**p, "id": next(ids), "gridPos": {"x": i * width, "y": y, "w": width, "h": height}} for i, p in enumerate(panels)]
+        y += height
     return out

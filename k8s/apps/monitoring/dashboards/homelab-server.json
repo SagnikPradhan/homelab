@@ -27,6 +27,10 @@
     {
       "type": "stat",
       "title": "CPU",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -40,6 +44,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -59,8 +64,7 @@
           },
           "mappings": [],
           "min": 0,
-          "max": 100,
-          "decimals": 0
+          "max": 100
         },
         "overrides": []
       },
@@ -75,20 +79,20 @@
         "textMode": "auto"
       },
       "id": 1,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
       "title": "Memory",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -102,6 +106,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -121,8 +126,7 @@
           },
           "mappings": [],
           "min": 0,
-          "max": 100,
-          "decimals": 0
+          "max": 100
         },
         "overrides": []
       },
@@ -137,20 +141,20 @@
         "textMode": "auto"
       },
       "id": 2,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 6,
         "y": 0,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
       "title": "CPU temp",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -164,6 +168,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -181,8 +186,7 @@
               }
             ]
           },
-          "mappings": [],
-          "decimals": 0
+          "mappings": []
         },
         "overrides": []
       },
@@ -197,20 +201,20 @@
         "textMode": "auto"
       },
       "id": 3,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 12,
         "y": 0,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Fullest disk",
+      "title": "Uptime",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -218,33 +222,23 @@
             "uid": "${DS}"
           },
           "refId": "A",
-          "expr": "max(100*(1-node_filesystem_avail_bytes{mountpoint=~\"/|/home|/var|/tank\"}/node_filesystem_size_bytes{mountpoint=~\"/|/home|/var|/tank\"}))"
+          "expr": "time() - node_boot_time_seconds"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
+          "unit": "s",
+          "decimals": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 75
-              },
-              {
-                "color": "red",
-                "value": 90
               }
             ]
           },
-          "mappings": [],
-          "min": 0,
-          "max": 100,
-          "decimals": 0
+          "mappings": []
         },
         "overrides": []
       },
@@ -259,20 +253,20 @@
         "textMode": "auto"
       },
       "id": 4,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 18,
         "y": 0,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
       "title": "ZFS pool",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -286,6 +280,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "none",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -328,20 +323,20 @@
         "textMode": "auto"
       },
       "id": 5,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 4,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Oldest backup",
+      "title": "Frigate last backup",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -349,12 +344,13 @@
             "uid": "${DS}"
           },
           "refId": "A",
-          "expr": "time() - min(volsync_backup_last_sync_timestamp_seconds)"
+          "expr": "time() - volsync_backup_last_sync_timestamp_seconds{name=\"frigate-media\"}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "s",
+          "decimals": 1,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -364,16 +360,15 @@
               },
               {
                 "color": "yellow",
-                "value": 28800
+                "value": 10800
               },
               {
                 "color": "red",
-                "value": 86400
+                "value": 43200
               }
             ]
           },
-          "mappings": [],
-          "decimals": 1
+          "mappings": []
         },
         "overrides": []
       },
@@ -388,20 +383,20 @@
         "textMode": "auto"
       },
       "id": 6,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 6,
-        "y": 5,
+        "y": 4,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Backup failures",
+      "title": "Next backup",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -409,27 +404,23 @@
             "uid": "${DS}"
           },
           "refId": "A",
-          "expr": "count(volsync_backup_last_result{result!=\"Successful\"}) or vector(0)"
+          "expr": "min(volsync_backup_next_sync_timestamp_seconds) - time()"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "s",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
               }
             ]
           },
-          "mappings": [],
-          "decimals": 0
+          "mappings": []
         },
         "overrides": []
       },
@@ -444,20 +435,20 @@
         "textMode": "auto"
       },
       "id": 7,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 12,
-        "y": 5,
+        "y": 4,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "stat",
-      "title": "Pods",
+      "title": "Backup failures",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -465,23 +456,27 @@
             "uid": "${DS}"
           },
           "refId": "A",
-          "expr": "count(count by(namespace,pod)(container_memory_working_set_bytes{container!=\"\",pod!=\"\"}))"
+          "expr": "count(volsync_backup_last_result{result!=\"Successful\"}) or vector(0)"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "none",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
-          "mappings": [],
-          "decimals": 0
+          "mappings": []
         },
         "overrides": []
       },
@@ -496,20 +491,20 @@
         "textMode": "auto"
       },
       "id": 8,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 18,
-        "y": 5,
+        "y": 4,
         "w": 6,
-        "h": 5
+        "h": 4
       }
     },
     {
       "type": "timeseries",
       "title": "CPU by mode",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -550,13 +545,9 @@
         }
       },
       "id": 9,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 8,
         "w": 8,
         "h": 8
       }
@@ -564,6 +555,10 @@
     {
       "type": "timeseries",
       "title": "Memory",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -572,7 +567,7 @@
           },
           "refId": "A",
           "expr": "node_memory_MemTotal_bytes-node_memory_MemAvailable_bytes",
-          "legendFormat": "used (incl. ZFS cache)"
+          "legendFormat": "used"
         },
         {
           "datasource": {
@@ -581,7 +576,7 @@
           },
           "refId": "B",
           "expr": "node_zfs_arc_size",
-          "legendFormat": "of which ZFS ARC cache"
+          "legendFormat": "ZFS cache"
         },
         {
           "datasource": {
@@ -617,20 +612,218 @@
         }
       },
       "id": 10,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
       "gridPos": {
         "x": 8,
-        "y": 10,
+        "y": 8,
         "w": 8,
         "h": 8
       }
     },
     {
       "type": "timeseries",
-      "title": "Network enp3s0",
+      "title": "Disk used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS}"
+          },
+          "refId": "A",
+          "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=~\"/|/home|/var|/tank\"}/node_filesystem_size_bytes{mountpoint=~\"/|/home|/var|/tank\"})",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU by deployment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS}"
+          },
+          "refId": "A",
+          "expr": "topk(10, sum by(app)(label_replace(label_replace(rate(container_cpu_usage_seconds_total{container!=\"\",pod!=\"\"}[$__rate_interval]), \"app\", \"$1\", \"pod\", \"(.*)\"), \"app\", \"$1\", \"app\", \"(.+?)(-[bcdfghjklmnpqrstvwxz2456789]{8,10})?-[a-z0-9]{5}\")))",
+          "legendFormat": "{{app}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 12,
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory by deployment",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS}"
+          },
+          "refId": "A",
+          "expr": "topk(10, sum by(app)(label_replace(label_replace(container_memory_working_set_bytes{container!=\"\",pod!=\"\"}, \"app\", \"$1\", \"pod\", \"(.*)\"), \"app\", \"$1\", \"app\", \"(.+?)(-[bcdfghjklmnpqrstvwxz2456789]{8,10})?-[a-z0-9]{5}\")))",
+          "legendFormat": "{{app}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 13,
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk busy",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS}"
+          },
+          "refId": "A",
+          "expr": "label_replace(label_replace(rate(node_disk_io_time_seconds_total{device=~\"sda|nvme0n1\"}[$__rate_interval])*100, \"disk\", \"hdd\", \"device\", \"sda\"), \"disk\", \"nvme\", \"device\", \"nvme0n1\")",
+          "legendFormat": "{{disk}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
+      },
       "targets": [
         {
           "datasource": {
@@ -639,7 +832,7 @@
           },
           "refId": "A",
           "expr": "rate(node_network_receive_bytes_total{device=\"enp3s0\"}[$__rate_interval])*8",
-          "legendFormat": "receive"
+          "legendFormat": "download"
         },
         {
           "datasource": {
@@ -648,7 +841,7 @@
           },
           "refId": "B",
           "expr": "rate(node_network_transmit_bytes_total{device=\"enp3s0\"}[$__rate_interval])*8",
-          "legendFormat": "transmit"
+          "legendFormat": "upload"
         }
       ],
       "fieldConfig": {
@@ -674,1034 +867,129 @@
           "sort": "desc"
         }
       },
-      "id": 11,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS}"
-      },
+      "id": 15,
       "gridPos": {
-        "x": 16,
-        "y": 10,
+        "x": 0,
+        "y": 24,
         "w": 8,
         "h": 8
       }
     },
     {
-      "id": 12,
-      "type": "row",
-      "title": "Storage",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 18,
-        "w": 24,
-        "h": 1
+      "type": "timeseries",
+      "title": "Temperatures",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
       },
-      "panels": [
+      "targets": [
         {
-          "type": "stat",
-          "title": "NVMe /home used",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/home\"}/node_filesystem_size_bytes{mountpoint=\"/home\"})"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 75
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "mappings": [],
-              "min": 0,
-              "max": 100,
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 13,
           "datasource": {
             "type": "prometheus",
             "uid": "${DS}"
           },
-          "gridPos": {
-            "x": 0,
-            "y": 19,
-            "w": 6,
-            "h": 5
-          }
+          "refId": "A",
+          "expr": "node_hwmon_temp_celsius{chip=\"pci0000:00_0000:00:18_3\"}",
+          "legendFormat": "CPU"
         },
         {
-          "type": "stat",
-          "title": "NVMe / used",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/\"}/node_filesystem_size_bytes{mountpoint=\"/\"})"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 75
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "mappings": [],
-              "min": 0,
-              "max": 100,
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 14,
           "datasource": {
             "type": "prometheus",
             "uid": "${DS}"
           },
-          "gridPos": {
-            "x": 6,
-            "y": 19,
-            "w": 6,
-            "h": 5
-          }
-        },
-        {
-          "type": "stat",
-          "title": "NVMe /var used",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/var\"}/node_filesystem_size_bytes{mountpoint=\"/var\"})"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 75
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "mappings": [],
-              "min": 0,
-              "max": 100,
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 15,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 19,
-            "w": 6,
-            "h": 5
-          }
-        },
-        {
-          "type": "stat",
-          "title": "ZFS tank used",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "100*(1-node_filesystem_avail_bytes{mountpoint=\"/tank\"}/node_filesystem_size_bytes{mountpoint=\"/tank\"})"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 75
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "mappings": [],
-              "min": 0,
-              "max": 100,
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 16,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 18,
-            "y": 19,
-            "w": 6,
-            "h": 5
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Disk throughput",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "rate(node_disk_read_bytes_total{device=~\"sda|nvme0n1\"}[$__rate_interval])",
-              "legendFormat": "{{device}} read"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "B",
-              "expr": "rate(node_disk_written_bytes_total{device=~\"sda|nvme0n1\"}[$__rate_interval])",
-              "legendFormat": "{{device}} write"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "Bps",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              },
-              "min": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 17,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 24,
-            "w": 8,
-            "h": 8
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Disk busy (sda = ZFS HDD, nvme0n1 = OS)",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "rate(node_disk_io_time_seconds_total{device=~\"sda|nvme0n1\"}[$__rate_interval])*100",
-              "legendFormat": "{{device}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              },
-              "min": 0,
-              "max": 100
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 18,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 8,
-            "y": 24,
-            "w": 8,
-            "h": 8
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "ZFS ARC (read cache in RAM)",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "node_zfs_arc_size",
-              "legendFormat": "size"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "B",
-              "expr": "node_zfs_arc_c_max",
-              "legendFormat": "limit"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bytes",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              },
-              "min": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 19,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 16,
-            "y": 24,
-            "w": 8,
-            "h": 8
-          }
+          "refId": "B",
+          "expr": "node_hwmon_temp_celsius{chip=\"nvme_nvme0\"}",
+          "legendFormat": "NVMe"
         }
-      ]
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 8,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      }
     },
     {
-      "id": 20,
-      "type": "row",
-      "title": "Backups",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 19,
-        "w": 24,
-        "h": 1
+      "type": "timeseries",
+      "title": "Disk throughput",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS}"
       },
-      "panels": [
+      "targets": [
         {
-          "type": "stat",
-          "title": "Frigate media",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "time() - volsync_backup_last_sync_timestamp_seconds{name=\"frigate-media\"}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 10800
-                  },
-                  {
-                    "color": "red",
-                    "value": 43200
-                  }
-                ]
-              },
-              "mappings": [],
-              "decimals": 1
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 21,
           "datasource": {
             "type": "prometheus",
             "uid": "${DS}"
           },
-          "gridPos": {
-            "x": 0,
-            "y": 20,
-            "w": 3,
-            "h": 5
-          }
+          "refId": "A",
+          "expr": "label_replace(label_replace(rate(node_disk_read_bytes_total{device=~\"sda|nvme0n1\"}[$__rate_interval]), \"disk\", \"hdd\", \"device\", \"sda\"), \"disk\", \"nvme\", \"device\", \"nvme0n1\")",
+          "legendFormat": "{{disk}} read"
         },
         {
-          "type": "stat",
-          "title": "Next backup in",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "min(volsync_backup_next_sync_timestamp_seconds) - time()"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 22,
           "datasource": {
             "type": "prometheus",
             "uid": "${DS}"
           },
-          "gridPos": {
-            "x": 3,
-            "y": 20,
-            "w": 3,
-            "h": 5
-          }
-        },
-        {
-          "type": "bargauge",
-          "title": "Time since last backup, per volume",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "time() - volsync_backup_last_sync_timestamp_seconds",
-              "legendFormat": "{{namespace}}/{{name}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 28800
-                  },
-                  {
-                    "color": "red",
-                    "value": 86400
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "orientation": "horizontal",
-            "displayMode": "gradient",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "showUnfilled": true
-          },
-          "id": 23,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 6,
-            "y": 20,
-            "w": 10,
-            "h": 6
-          }
-        },
-        {
-          "type": "table",
-          "title": "Result of last run",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "volsync_backup_last_result",
-              "instant": true,
-              "format": "table"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true
-          },
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true,
-                  "Value": true,
-                  "__name__": true,
-                  "job": true,
-                  "instance": true
-                }
-              }
-            }
-          ],
-          "id": 24,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 16,
-            "y": 20,
-            "w": 8,
-            "h": 6
-          }
+          "refId": "B",
+          "expr": "label_replace(label_replace(rate(node_disk_written_bytes_total{device=~\"sda|nvme0n1\"}[$__rate_interval]), \"disk\", \"hdd\", \"device\", \"sda\"), \"disk\", \"nvme\", \"device\", \"nvme0n1\")",
+          "legendFormat": "{{disk}} write"
         }
-      ]
-    },
-    {
-      "id": 25,
-      "type": "row",
-      "title": "System",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 20,
-        "w": 24,
-        "h": 1
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0
+        },
+        "overrides": []
       },
-      "panels": [
-        {
-          "type": "stat",
-          "title": "Uptime",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "time() - node_boot_time_seconds"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "mappings": [],
-              "decimals": 1
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 26,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 21,
-            "w": 4,
-            "h": 5
-          }
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
         },
-        {
-          "type": "stat",
-          "title": "Load (1m)",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "node_load1"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 8
-                  },
-                  {
-                    "color": "red",
-                    "value": 12
-                  }
-                ]
-              },
-              "mappings": [],
-              "decimals": 2
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 27,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 4,
-            "y": 21,
-            "w": 4,
-            "h": 5
-          }
-        },
-        {
-          "type": "stat",
-          "title": "NVMe temp",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "node_hwmon_temp_celsius{chip=\"nvme_nvme0\"}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "celsius",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 60
-                  },
-                  {
-                    "color": "red",
-                    "value": 75
-                  }
-                ]
-              },
-              "mappings": [],
-              "decimals": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "id": 28,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 8,
-            "y": 21,
-            "w": 4,
-            "h": 5
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Temperatures",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "node_hwmon_temp_celsius{chip=\"pci0000:00_0000:00:18_3\"}",
-              "legendFormat": "CPU"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "B",
-              "expr": "node_hwmon_temp_celsius{chip=\"nvme_nvme0\"}",
-              "legendFormat": "NVMe"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "celsius",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 29,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 21,
-            "w": 12,
-            "h": 5
-          }
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      ]
-    },
-    {
-      "id": 30,
-      "type": "row",
-      "title": "Kubernetes pods",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 21,
-        "w": 24,
-        "h": 1
       },
-      "panels": [
-        {
-          "type": "timeseries",
-          "title": "Memory by pod (top 10)",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "topk(10, sum by(namespace,pod)(container_memory_working_set_bytes{container!=\"\",pod!=\"\"}))",
-              "legendFormat": "{{namespace}}/{{pod}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bytes",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              },
-              "min": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 31,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 0,
-            "y": 22,
-            "w": 12,
-            "h": 8
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "CPU by pod (top 10)",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS}"
-              },
-              "refId": "A",
-              "expr": "topk(10, sum by(namespace,pod)(rate(container_cpu_usage_seconds_total{container!=\"\",pod!=\"\"}[$__rate_interval])))",
-              "legendFormat": "{{namespace}}/{{pod}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "fillOpacity": 15,
-                "lineWidth": 1,
-                "showPoints": "never",
-                "spanNulls": true
-              },
-              "min": 0
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 32,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS}"
-          },
-          "gridPos": {
-            "x": 12,
-            "y": 22,
-            "w": 12,
-            "h": 8
-          }
-        }
-      ]
+      "id": 17,
+      "gridPos": {
+        "x": 16,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      }
     }
   ]
 }
