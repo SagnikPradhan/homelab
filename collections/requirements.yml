@@ -1,0 +1,7 @@
+# Collections the playbooks use. Install with: ansible-galaxy collection install -r
+# collections/requirements.yml
+collections:
+  - name: ansible.posix
+  - name: community.general
+  # legacy/migrate.yml p2a only (historical)
+  - name: community.docker

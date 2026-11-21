@@ -1,0 +1,6 @@
+k8s/apps/*/config.yml
+**/*.j2
+group_vars/all/vault.yml
+.ansible
+.kube
+.zed

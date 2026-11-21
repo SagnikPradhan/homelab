@@ -1,0 +1,6 @@
+.ansible/
+.kube/
+.serena/
+*.retry
+.claude/
+__pycache__/

@@ -1,0 +1,11 @@
+# Tooling for this repo. `mise install` fetches everything; `mise run` is not used, tasks live in taskfile.yml.
+[tools]
+task = "3.54.0"
+kubectl = "1.34.13"
+jq = "1.7.1"
+bitwarden = "2026.8.0"
+node = "24"
+"npm:prettier" = "3"
+ruff = "0.17.6"
+"pipx:ansible-core" = "2.19.11"
+"pipx:ansible-lint" = "25.9.2"
